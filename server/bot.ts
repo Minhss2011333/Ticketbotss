@@ -75,14 +75,10 @@ export class TradebloxBot {
       
       new SlashCommandBuilder()
         .setName('add')
-        .setDescription('Add another party to a ticket')
-        .addStringOption(option =>
-          option.setName('ticket')
-            .setDescription('Ticket number')
-            .setRequired(true))
-        .addStringOption(option =>
+        .setDescription('Add another party to this ticket')
+        .addUserOption(option =>
           option.setName('user')
-            .setDescription('User ID or mention (@username)')
+            .setDescription('User to add to the ticket')
             .setRequired(true))
     ];
 
@@ -121,11 +117,11 @@ export class TradebloxBot {
           await this.handleAddCommand(interaction);
           break;
         default:
-          await interaction.reply({ content: 'Unknown command!', ephemeral: true });
+          await interaction.reply({ content: 'Unknown command!', flags: 64 });
       }
     } catch (error) {
       console.error('Error handling slash command:', error);
-      await interaction.reply({ content: 'An error occurred while processing your command.', ephemeral: true });
+      await interaction.reply({ content: 'An error occurred while processing your command.', flags: 64 });
     }
   }
 
@@ -160,7 +156,7 @@ export class TradebloxBot {
     const ticket = await storage.getTicketByNumber(ticketNumber);
 
     if (!ticket) {
-      await interaction.reply({ content: `Ticket ${ticketNumber} not found.`, ephemeral: true });
+      await interaction.reply({ content: `Ticket ${ticketNumber} not found.`, flags: 64 });
       return;
     }
 
@@ -175,12 +171,12 @@ export class TradebloxBot {
     const ticket = await storage.getTicketByNumber(ticketNumber);
 
     if (!ticket) {
-      await interaction.reply({ content: `Ticket ${ticketNumber} not found.`, ephemeral: true });
+      await interaction.reply({ content: `Ticket ${ticketNumber} not found.`, flags: 64 });
       return;
     }
 
     if (ticket.status !== 'pending') {
-      await interaction.reply({ content: `Ticket ${ticketNumber} is not available for claiming.`, ephemeral: true });
+      await interaction.reply({ content: `Ticket ${ticketNumber} is not available for claiming.`, flags: 64 });
       return;
     }
 
@@ -194,7 +190,7 @@ export class TradebloxBot {
       const embed = this.createTicketEmbed(updatedTicket);
       await interaction.reply({ content: `✅ You have claimed ticket ${ticketNumber}!`, embeds: [embed] });
     } else {
-      await interaction.reply({ content: 'Failed to claim ticket.', ephemeral: true });
+      await interaction.reply({ content: 'Failed to claim ticket.', flags: 64 });
     }
   }
 
@@ -203,12 +199,12 @@ export class TradebloxBot {
     const ticket = await storage.getTicketByNumber(ticketNumber);
 
     if (!ticket) {
-      await interaction.reply({ content: `Ticket ${ticketNumber} not found.`, ephemeral: true });
+      await interaction.reply({ content: `Ticket ${ticketNumber} not found.`, flags: 64 });
       return;
     }
 
     if (ticket.status === 'closed') {
-      await interaction.reply({ content: `Ticket ${ticketNumber} is already closed.`, ephemeral: true });
+      await interaction.reply({ content: `Ticket ${ticketNumber} is already closed.`, flags: 64 });
       return;
     }
 
@@ -220,51 +216,66 @@ export class TradebloxBot {
       const embed = this.createTicketEmbed(updatedTicket);
       await interaction.reply({ content: `🔒 Ticket ${ticketNumber} has been closed.`, embeds: [embed] });
     } else {
-      await interaction.reply({ content: 'Failed to close ticket.', ephemeral: true });
+      await interaction.reply({ content: 'Failed to close ticket.', flags: 64 });
     }
   }
 
   private async handleAddCommand(interaction: any) {
-    const ticketNumber = interaction.options.getString('ticket');
-    const userInput = interaction.options.getString('user');
+    const user = interaction.options.getUser('user');
+    const channelName = interaction.channel?.name;
     
-    // Find the ticket
-    const ticket = await storage.getTicketByNumber(ticketNumber);
+    // Try to extract ticket number from channel name (e.g., "ticket-T001")
+    let ticketNumber = null;
+    if (channelName && channelName.startsWith('ticket-')) {
+      ticketNumber = channelName.replace('ticket-', '');
+    }
+
+    // If no ticket found from channel name, look for any ticket created by the user
+    let ticket = null;
+    if (ticketNumber) {
+      ticket = await storage.getTicketByNumber(ticketNumber);
+    }
+
+    // If still no ticket found, try to find the most recent ticket by the user
+    if (!ticket) {
+      const allTickets = await storage.getAllTickets();
+      ticket = allTickets
+        .filter(t => t.creatorId === interaction.user.id && t.status !== 'closed')
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+    }
 
     if (!ticket) {
-      await interaction.reply({ content: `Ticket ${ticketNumber} not found.`, ephemeral: true });
+      await interaction.reply({ 
+        content: 'No active ticket found. Use this command in a ticket channel or create a ticket first.', 
+        flags: 64 
+      });
       return;
     }
 
     if (ticket.status === 'closed') {
-      await interaction.reply({ content: `Ticket ${ticketNumber} is already closed and cannot be modified.`, ephemeral: true });
+      await interaction.reply({ 
+        content: `Ticket ${ticket.ticketNumber} is already closed and cannot be modified.`, 
+        flags: 64 
+      });
       return;
-    }
-
-    // Extract user ID from mention or use as-is if it's already an ID
-    let userId = userInput;
-    if (userInput.startsWith('<@') && userInput.endsWith('>')) {
-      // Remove <@ and > from mention
-      userId = userInput.slice(2, -1);
-      // Remove ! if it's a nickname mention
-      if (userId.startsWith('!')) {
-        userId = userId.slice(1);
-      }
     }
 
     // Update the ticket with the new other user
     const updatedTicket = await storage.updateTicket(ticket.id, {
-      otherUserId: userId
+      otherUserId: user.id
     });
 
     if (updatedTicket) {
       const embed = this.createTicketEmbed(updatedTicket);
       await interaction.reply({ 
-        content: `✅ Successfully added user <@${userId}> to ticket ${ticketNumber}!`, 
+        content: `✅ Successfully added ${user.displayName || user.username} to ticket ${ticket.ticketNumber}!`, 
         embeds: [embed] 
       });
     } else {
-      await interaction.reply({ content: 'Failed to add user to ticket.', ephemeral: true });
+      await interaction.reply({ 
+        content: 'Failed to add user to ticket.', 
+        flags: 64 
+      });
     }
   }
 
@@ -325,12 +336,12 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
       const ticket = await storage.getTicket(ticketId);
 
       if (!ticket) {
-        await interaction.reply({ content: 'Ticket not found.', ephemeral: true });
+        await interaction.reply({ content: 'Ticket not found.', flags: 64 });
         return;
       }
 
       if (ticket.status !== 'pending') {
-        await interaction.reply({ content: 'This ticket is not available for claiming.', ephemeral: true });
+        await interaction.reply({ content: 'This ticket is not available for claiming.', flags: 64 });
         return;
       }
 
@@ -349,7 +360,7 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
       const ticket = await storage.getTicket(ticketId);
 
       if (!ticket) {
-        await interaction.reply({ content: 'Ticket not found.', ephemeral: true });
+        await interaction.reply({ content: 'Ticket not found.', flags: 64 });
         return;
       }
 
@@ -374,7 +385,7 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
       const ticket = await storage.getTicket(ticketId);
 
       if (!ticket) {
-        await interaction.reply({ content: 'Ticket not found.', ephemeral: true });
+        await interaction.reply({ content: 'Ticket not found.', flags: 64 });
         return;
       }
 
@@ -516,7 +527,7 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
 
         const guild = interaction.guild;
         if (!guild) {
-          await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+          await interaction.reply({ content: 'This command can only be used in a server.', flags: 64 });
           return;
         }
 
@@ -559,21 +570,21 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
 
           await interaction.reply({ 
             content: `✅ Ticket created! Please check ${ticketChannel}`,
-            ephemeral: true
+            flags: 64
           });
 
         } catch (error) {
           console.error('Error creating ticket channel:', error);
           await interaction.reply({ 
             content: 'Failed to create ticket channel. Please contact an administrator.', 
-            ephemeral: true 
+            flags: 64 
           });
         }
       } catch (error) {
         console.error('Error creating ticket:', error);
         await interaction.reply({ 
           content: 'Failed to create ticket. Please check your input and try again.', 
-          ephemeral: true 
+          flags: 64 
         });
       }
     }
