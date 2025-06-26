@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, Events, ComponentType, ChannelType, StringSelectMenuBuilder } from 'discord.js';
+import { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, Events, ComponentType, ChannelType, StringSelectMenuBuilder, GuildChannel } from 'discord.js';
 import { storage } from './storage.js';
 import { insertTicketSchema, Ticket } from '../shared/schema.js';
 import { z } from 'zod';
@@ -756,12 +756,12 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
           new ButtonBuilder()
             .setCustomId('fee_confirm')
             .setEmoji('🤝')
-            .setLabel('1')
+            .setLabel('Confirm')
             .setStyle(ButtonStyle.Secondary),
           new ButtonBuilder()
             .setCustomId('fee_deny')
             .setEmoji('😊')
-            .setLabel('')
+            .setLabel('Decline')
             .setStyle(ButtonStyle.Secondary)
         );
 
@@ -920,7 +920,7 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
             }
             
             // Look for existing overflow categories
-            const overflowCategories = guild.channels.cache.filter(channel => 
+            const overflowCategories = guild.channels.cache.filter((channel: GuildChannel) => 
               channel.type === ChannelType.GuildCategory && 
               channel.name.startsWith('Middleman Tickets')
             );
