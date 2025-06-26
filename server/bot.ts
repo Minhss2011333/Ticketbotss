@@ -214,7 +214,7 @@ export class TradebloxBot {
       .setTitle('Request a middleman')
       .setDescription(`**Middleman Service**
 
-🔸 To request a middleman from Tradeblox | MM & Trading, click the Red "Request a MM" button on this message.
+🔸 To request a middleman from Tradeblox | MM & Trading, select your deal value range from the dropdown below.
 
 **How does middleman work?**
 ✕ Example: Trade is NFR Crow for Robux.
@@ -231,52 +231,37 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
       .setColor(0xFF8C00)
       .setFooter({ text: 'Powered by ticketsbot.cloud' });
 
-    const row = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId('create_ticket')
-          .setLabel('Request a MM')
-          .setStyle(ButtonStyle.Danger)
-      );
+    const selectMenu = new StringSelectMenuBuilder()
+      .setCustomId('deal_value_select')
+      .setPlaceholder('Select your deal value range to request a middleman...')
+      .addOptions([
+        {
+          label: 'Deals up to $50',
+          description: 'For trades valued up to $50',
+          value: 'up_to_50',
+          emoji: '💰'
+        },
+        {
+          label: 'Deals up to $150',
+          description: 'For trades valued up to $150',
+          value: 'up_to_150',
+          emoji: '💎'
+        },
+        {
+          label: 'Deals up to $350',
+          description: 'For trades valued up to $350',
+          value: 'up_to_350',
+          emoji: '🏆'
+        }
+      ]);
+
+    const row = new ActionRowBuilder().addComponents(selectMenu);
 
     await interaction.reply({ embeds: [embed], components: [row] });
   }
 
   private async handleButtonInteraction(interaction: any) {
-    if (interaction.customId === 'create_ticket') {
-      const embed = new EmbedBuilder()
-        .setTitle('Select Deal Value Range')
-        .setDescription('Please select the value range for your trade:')
-        .setColor(0xFF8C00);
-
-      const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId('deal_value_select')
-        .setPlaceholder('Choose deal value range...')
-        .addOptions([
-          {
-            label: 'Deals up to $50',
-            description: 'For trades valued up to $50',
-            value: 'up_to_50',
-            emoji: '💰'
-          },
-          {
-            label: 'Deals up to $150',
-            description: 'For trades valued up to $150',
-            value: 'up_to_150',
-            emoji: '💎'
-          },
-          {
-            label: 'Deals up to $350',
-            description: 'For trades valued up to $350',
-            value: 'up_to_350',
-            emoji: '🏆'
-          }
-        ]);
-
-      const row = new ActionRowBuilder().addComponents(selectMenu);
-
-      await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
-    } else if (interaction.customId.startsWith('claim_')) {
+    if (interaction.customId.startsWith('claim_')) {
       const ticketId = parseInt(interaction.customId.replace('claim_', ''));
       const ticket = await storage.getTicket(ticketId);
 

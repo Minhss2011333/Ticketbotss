@@ -109,6 +109,7 @@ To use the Discord bot functionality:
 - `/close <number>` - Close a completed ticket
 
 ## Changelog
+- June 26, 2025: Added dropdown menu with 3 deal value tiers ($50, $150, $350) replacing the "Request a MM" button
 - June 26, 2025: Converted web application to Discord bot with full slash command integration
 - June 26, 2025: Initial setup
 
