@@ -16,6 +16,7 @@ export const tickets = pgTable("tickets", {
   deal: text("deal").notNull(),
   amount: text("amount").notNull(),
   otherUserId: text("other_user_id").notNull(),
+  category: text("category").notNull().default("middleman"), // middleman, trading, other
   status: text("status").notNull().default("pending"), // pending, claimed, closed
   claimedBy: text("claimed_by"),
   claimedByName: text("claimed_by_name"),
@@ -34,6 +35,8 @@ export const insertTicketSchema = createInsertSchema(tickets).pick({
   deal: true,
   amount: true,
   otherUserId: true,
+}).extend({
+  category: z.string().optional(),
 });
 
 export const updateTicketSchema = z.object({

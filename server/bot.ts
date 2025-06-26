@@ -519,7 +519,8 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
           creatorName: interaction.user.displayName || interaction.user.username,
           deal: `[${dealValueLabel}] Trading: ${giving} ↔ ${receiving}`,
           amount: `${giving} for ${receiving}`,
-          otherUserId: otherTrader
+          otherUserId: otherTrader,
+          category: "middleman"
         };
 
         const validatedData = insertTicketSchema.parse(ticketData);

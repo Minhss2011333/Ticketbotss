@@ -30,8 +30,9 @@ This is a Discord bot for the Tradeblox platform, designed to facilitate secure 
 
 ### Core Entities
 1. **Users**: Basic user authentication and management
-2. **Tickets**: Trade request tickets with status tracking
+2. **Tickets**: Trade request tickets with status tracking and category classification
 3. **Ticket Management**: Create, claim, and close ticket operations
+4. **Categories**: All tickets are dedicated to the "middleman" category for focused service delivery
 
 ### Discord Bot Components
 - **TradebloxBot**: Main bot class handling all Discord interactions
@@ -110,6 +111,7 @@ To use the Discord bot functionality:
 - `/add <ticket> <user>` - Add another party to an existing ticket (accepts user ID or mention)
 
 ## Changelog
+- June 26, 2025: Added category system with all tickets dedicated to "middleman" category
 - June 26, 2025: Updated ticket numbering to start from 40,000 instead of 1
 - June 26, 2025: Added `/add` slash command to add another party to existing tickets
 - June 26, 2025: Added dropdown menu with 3 deal value tiers ($50, $150, $350) replacing the "Request a MM" button

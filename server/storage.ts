@@ -66,9 +66,14 @@ export class MemStorage implements IStorage {
     const id = this.currentTicketId++;
     const ticketNumber = String(this.ticketCounter++);
     const ticket: Ticket = {
-      ...insertTicket,
       id,
       ticketNumber,
+      creatorId: insertTicket.creatorId,
+      creatorName: insertTicket.creatorName,
+      deal: insertTicket.deal,
+      amount: insertTicket.amount,
+      otherUserId: insertTicket.otherUserId,
+      category: insertTicket.category ?? "middleman",
       status: "pending",
       claimedBy: null,
       claimedByName: null,
