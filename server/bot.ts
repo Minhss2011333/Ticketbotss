@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, Events, ComponentType, ChannelType } from 'discord.js';
+import { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, Events, ComponentType, ChannelType, StringSelectMenuBuilder } from 'discord.js';
 import { storage } from './storage.js';
 import { insertTicketSchema, Ticket } from '../shared/schema.js';
 import { z } from 'zod';
@@ -31,6 +31,8 @@ export class TradebloxBot {
         await this.handleSlashCommand(interaction);
       } else if (interaction.isButton()) {
         await this.handleButtonInteraction(interaction);
+      } else if (interaction.isStringSelectMenu()) {
+        await this.handleSelectMenuInteraction(interaction);
       } else if (interaction.isModalSubmit()) {
         await this.handleModalSubmit(interaction);
       }
@@ -242,41 +244,38 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
 
   private async handleButtonInteraction(interaction: any) {
     if (interaction.customId === 'create_ticket') {
-      const modal = new ModalBuilder()
-        .setCustomId('ticket_modal')
-        .setTitle('Middleman Request');
+      const embed = new EmbedBuilder()
+        .setTitle('Select Deal Value Range')
+        .setDescription('Please select the value range for your trade:')
+        .setColor(0xFF8C00);
 
-      const otherTraderInput = new TextInputBuilder()
-        .setCustomId('otherTrader')
-        .setLabel('What is the other trader\'s username?')
-        .setStyle(TextInputStyle.Short)
-        .setPlaceholder('Enter username...')
-        .setRequired(true)
-        .setMaxLength(100);
+      const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('deal_value_select')
+        .setPlaceholder('Choose deal value range...')
+        .addOptions([
+          {
+            label: 'Deals up to $50',
+            description: 'For trades valued up to $50',
+            value: 'up_to_50',
+            emoji: '💰'
+          },
+          {
+            label: 'Deals up to $150',
+            description: 'For trades valued up to $150',
+            value: 'up_to_150',
+            emoji: '💎'
+          },
+          {
+            label: 'Deals up to $350',
+            description: 'For trades valued up to $350',
+            value: 'up_to_350',
+            emoji: '🏆'
+          }
+        ]);
 
-      const givingInput = new TextInputBuilder()
-        .setCustomId('giving')
-        .setLabel('What are you giving?')
-        .setStyle(TextInputStyle.Short)
-        .setPlaceholder('e.g., FR Frost Dragon in Adopt Me')
-        .setRequired(true)
-        .setMaxLength(200);
+      const row = new ActionRowBuilder().addComponents(selectMenu);
 
-      const receivingInput = new TextInputBuilder()
-        .setCustomId('receiving')
-        .setLabel('What is the other trader giving?')
-        .setStyle(TextInputStyle.Short)
-        .setPlaceholder('e.g., $20 USD LTC')
-        .setRequired(true)
-        .setMaxLength(200);
-
-      const firstActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(otherTraderInput);
-      const secondActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(givingInput);
-      const thirdActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(receivingInput);
-
-      modal.addComponents(firstActionRow, secondActionRow, thirdActionRow);
-
-      await interaction.showModal(modal);
+      await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
     } else if (interaction.customId.startsWith('claim_')) {
       const ticketId = parseInt(interaction.customId.replace('claim_', ''));
       const ticket = await storage.getTicket(ticketId);
@@ -358,6 +357,62 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
     }
   }
 
+  private async handleSelectMenuInteraction(interaction: any) {
+    if (interaction.customId === 'deal_value_select') {
+      const selectedValue = interaction.values[0];
+      let dealValueLabel = '';
+      
+      switch (selectedValue) {
+        case 'up_to_50':
+          dealValueLabel = 'Deals up to $50';
+          break;
+        case 'up_to_150':
+          dealValueLabel = 'Deals up to $150';
+          break;
+        case 'up_to_350':
+          dealValueLabel = 'Deals up to $350';
+          break;
+      }
+
+      // Now show the modal with the deal value pre-selected
+      const modal = new ModalBuilder()
+        .setCustomId(`ticket_modal_${selectedValue}`)
+        .setTitle(`Middleman Request - ${dealValueLabel}`);
+
+      const otherTraderInput = new TextInputBuilder()
+        .setCustomId('otherTrader')
+        .setLabel('What is the other trader\'s username?')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('Enter username...')
+        .setRequired(true)
+        .setMaxLength(100);
+
+      const givingInput = new TextInputBuilder()
+        .setCustomId('giving')
+        .setLabel('What are you giving?')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., FR Frost Dragon in Adopt Me')
+        .setRequired(true)
+        .setMaxLength(200);
+
+      const receivingInput = new TextInputBuilder()
+        .setCustomId('receiving')
+        .setLabel('What is the other trader giving?')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., $20 USD LTC')
+        .setRequired(true)
+        .setMaxLength(200);
+
+      const firstActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(otherTraderInput);
+      const secondActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(givingInput);
+      const thirdActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(receivingInput);
+
+      modal.addComponents(firstActionRow, secondActionRow, thirdActionRow);
+
+      await interaction.showModal(modal);
+    }
+  }
+
   private async handleModalSubmit(interaction: any) {
     if (interaction.customId.startsWith('close_reason_modal_')) {
       const ticketId = parseInt(interaction.customId.replace('close_reason_modal_', ''));
@@ -383,7 +438,22 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
           }
         }, 10000);
       }
-    } else if (interaction.customId === 'ticket_modal') {
+    } else if (interaction.customId.startsWith('ticket_modal_')) {
+      // Extract deal value from the custom ID
+      const dealValue = interaction.customId.replace('ticket_modal_', '');
+      let dealValueLabel = '';
+      
+      switch (dealValue) {
+        case 'up_to_50':
+          dealValueLabel = 'Up to $50';
+          break;
+        case 'up_to_150':
+          dealValueLabel = 'Up to $150';
+          break;
+        case 'up_to_350':
+          dealValueLabel = 'Up to $350';
+          break;
+      }
       const otherTrader = interaction.fields.getTextInputValue('otherTrader');
       const giving = interaction.fields.getTextInputValue('giving');
       const receiving = interaction.fields.getTextInputValue('receiving');
@@ -392,7 +462,7 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
         const ticketData = {
           creatorId: interaction.user.id,
           creatorName: interaction.user.displayName || interaction.user.username,
-          deal: `Trading: ${giving} ↔ ${receiving}`,
+          deal: `[${dealValueLabel}] Trading: ${giving} ↔ ${receiving}`,
           amount: `${giving} for ${receiving}`,
           otherUserId: otherTrader
         };
@@ -421,15 +491,15 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
                 allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
               },
               ...guild.roles.cache
-                .filter(role => role.name.toLowerCase().includes('middleman') || role.name.toLowerCase().includes('staff'))
-                .map(role => ({
+                .filter((role: any) => role.name.toLowerCase().includes('middleman') || role.name.toLowerCase().includes('staff'))
+                .map((role: any) => ({
                   id: role.id,
                   allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
                 }))
             ],
           });
 
-          const ticketEmbed = this.createTicketDisplayEmbed(otherTrader, giving, receiving);
+          const ticketEmbed = this.createTicketDisplayEmbed(otherTrader, giving, receiving, dealValueLabel);
           const actionRow = this.createTicketActionRow(ticket);
           
           const confirmationEmbed = new EmbedBuilder()
@@ -465,9 +535,9 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
     }
   }
 
-  private createTicketDisplayEmbed(otherTrader: string, giving: string, receiving: string): EmbedBuilder {
+  private createTicketDisplayEmbed(otherTrader: string, giving: string, receiving: string, dealValue?: string): EmbedBuilder {
     const embed = new EmbedBuilder()
-      .setDescription(`**What is the other trader's username?**\n${otherTrader}\n\n**What are you giving?**\n${giving}\n\n**What is the other trader giving?**\n${receiving}`)
+      .setDescription(`${dealValue ? `**Deal Value Range:** ${dealValue}\n\n` : ''}**What is the other trader's username?**\n${otherTrader}\n\n**What are you giving?**\n${giving}\n\n**What is the other trader giving?**\n${receiving}`)
       .setColor(0x00DCDC)
       .setFooter({ text: 'Powered by tickets.bot' });
 
