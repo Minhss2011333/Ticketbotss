@@ -220,6 +220,104 @@ export class TradebloxBot {
     }
   }
 
+  private confirmations = new Map<number, Set<string>>(); // ticketId -> set of user IDs who confirmed
+
+  private async handleTradeConfirmation(interaction: any, action: 'confirm' | 'decline') {
+    const ticketId = parseInt(interaction.customId.split('_')[2]);
+    const ticket = await storage.getTicket(ticketId);
+
+    if (!ticket) {
+      await interaction.reply({ content: 'Ticket not found.', flags: 64 });
+      return;
+    }
+
+    const userId = interaction.user.id;
+    const isCreator = userId === ticket.creatorId;
+    const isOtherParty = userId === ticket.otherUserId;
+
+    if (!isCreator && !isOtherParty) {
+      await interaction.reply({ content: 'You are not part of this trade.', flags: 64 });
+      return;
+    }
+
+    if (action === 'decline') {
+      // If anyone declines, delete the ticket and channel
+      const declineEmbed = new EmbedBuilder()
+        .setTitle('❌ Trade Declined')
+        .setDescription(`${interaction.user.displayName || interaction.user.username} has declined the trade.\n\nThis ticket will be deleted in 10 seconds.`)
+        .setColor(0xFF0000);
+
+      await interaction.update({ 
+        content: `Trade declined by <@${userId}>`,
+        embeds: [declineEmbed],
+        components: []
+      });
+
+      // Delete ticket from storage
+      await storage.deleteTicket(ticketId);
+
+      // Delete channel after delay
+      setTimeout(async () => {
+        try {
+          if (interaction.channel && 'delete' in interaction.channel) {
+            await interaction.channel.delete();
+          }
+        } catch (error) {
+          console.error('Error deleting declined ticket channel:', error);
+        }
+      }, 10000);
+
+      return;
+    }
+
+    // Handle confirmation
+    if (!this.confirmations.has(ticketId)) {
+      this.confirmations.set(ticketId, new Set());
+    }
+
+    const confirmationSet = this.confirmations.get(ticketId)!;
+    confirmationSet.add(userId);
+
+    // Check if both parties have confirmed
+    const bothConfirmed = confirmationSet.has(ticket.creatorId) && confirmationSet.has(ticket.otherUserId);
+
+    if (bothConfirmed) {
+      // Both confirmed - proceed with middleman
+      const successEmbed = new EmbedBuilder()
+        .setTitle('✅ Trade Confirmed by Both Parties')
+        .setDescription(`Both parties have confirmed the trade!\n\n` +
+          `**Creator:** <@${ticket.creatorId}>\n` +
+          `**Other Party:** <@${ticket.otherUserId}>\n\n` +
+          `**Deal:** ${ticket.deal}\n\n` +
+          `🛡️ **A middleman will now guide this trade. Please wait for staff assistance.**`)
+        .setColor(0x00FF00)
+        .setFooter({ text: 'Trade confirmed - Middleman will assist shortly' });
+
+      await interaction.update({
+        content: `🎉 Trade confirmed! <@&1365778314572333188> - New middleman request`,
+        embeds: [successEmbed],
+        components: []
+      });
+
+      // Clean up confirmations
+      this.confirmations.delete(ticketId);
+
+    } else {
+      // Partial confirmation
+      const waitingFor = confirmationSet.has(ticket.creatorId) ? ticket.otherUserId : ticket.creatorId;
+      const partialEmbed = new EmbedBuilder()
+        .setTitle('⏳ Waiting for Confirmation')
+        .setDescription(`${interaction.user.displayName || interaction.user.username} has confirmed the trade.\n\n` +
+          `Waiting for <@${waitingFor}> to confirm...`)
+        .setColor(0xFFD700);
+
+      await interaction.update({
+        embeds: [partialEmbed],
+        components: interaction.message.components
+      });
+    }
+  }
+
   private async handleAddCommand(interaction: any) {
     const user = interaction.options.getUser('user');
     const channelName = interaction.channel?.name;
@@ -266,11 +364,73 @@ export class TradebloxBot {
     });
 
     if (updatedTicket) {
-      const embed = this.createTicketEmbed(updatedTicket);
+      // Give the added user permission to see the ticket channel
+      const channel = interaction.channel;
+      if (channel && 'permissionOverwrites' in channel) {
+        try {
+          await channel.permissionOverwrites.create(user.id, {
+            ViewChannel: true,
+            SendMessages: true,
+            ReadMessageHistory: true
+          });
+        } catch (error) {
+          console.error('Error setting channel permissions:', error);
+        }
+      }
+
+      // Create confirmation embed and buttons
+      const confirmationEmbed = new EmbedBuilder()
+        .setTitle('🤝 Trade Confirmation Required')
+        .setDescription(`**Both parties must confirm this trade:**\n\n` +
+          `**Creator:** <@${ticket.creatorId}>\n` +
+          `**Other Party:** <@${user.id}>\n\n` +
+          `**Deal:** ${ticket.deal}\n\n` +
+          `Please both click **Confirm** to proceed with middleman service, or **Decline** to cancel the trade.`)
+        .setColor(0xFFD700)
+        .setFooter({ text: 'Both parties must confirm within 5 minutes' });
+
+      const confirmButton = new ButtonBuilder()
+        .setCustomId(`confirm_trade_${ticket.id}`)
+        .setLabel('✅ Confirm Trade')
+        .setStyle(ButtonStyle.Success);
+
+      const declineButton = new ButtonBuilder()
+        .setCustomId(`decline_trade_${ticket.id}`)
+        .setLabel('❌ Decline Trade')
+        .setStyle(ButtonStyle.Danger);
+
+      const row = new ActionRowBuilder().addComponents(confirmButton, declineButton);
+
       await interaction.reply({ 
-        content: `✅ Successfully added ${user.displayName || user.username} to ticket ${ticket.ticketNumber}!`, 
-        embeds: [embed] 
+        content: `<@${ticket.creatorId}> <@${user.id}> Please confirm this trade!`,
+        embeds: [confirmationEmbed],
+        components: [row]
       });
+
+      // Set a timeout to auto-decline after 5 minutes
+      setTimeout(async () => {
+        try {
+          const channel = interaction.channel;
+          if (channel && 'send' in channel) {
+            await channel.send({
+              content: '⏰ Trade confirmation timed out. Ticket will be deleted in 10 seconds.',
+            });
+            
+            setTimeout(async () => {
+              try {
+                if (channel && 'delete' in channel) {
+                  await channel.delete();
+                }
+              } catch (error) {
+                console.error('Error deleting timed out ticket:', error);
+              }
+            }, 10000);
+          }
+        } catch (error) {
+          console.error('Error handling timeout:', error);
+        }
+      }, 300000); // 5 minutes
+
     } else {
       await interaction.reply({ 
         content: 'Failed to add user to ticket.', 
@@ -355,6 +515,10 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
         const embed = this.createTicketEmbed(updatedTicket);
         await interaction.update({ embeds: [embed], components: [this.createTicketActionRow(updatedTicket)] });
       }
+    } else if (interaction.customId.startsWith('confirm_trade_')) {
+      await this.handleTradeConfirmation(interaction, 'confirm');
+    } else if (interaction.customId.startsWith('decline_trade_')) {
+      await this.handleTradeConfirmation(interaction, 'decline');
     } else if (interaction.customId.startsWith('close_reason_')) {
       const ticketId = parseInt(interaction.customId.replace('close_reason_', ''));
       const ticket = await storage.getTicket(ticketId);
@@ -536,6 +700,7 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
           const ticketChannel = await guild.channels.create({
             name: `ticket-${ticket.ticketNumber.toLowerCase()}`,
             type: ChannelType.GuildText,
+            parent: '1365778563894349977', // Specific category ID
             topic: `Middleman request by ${interaction.user.username}`,
             permissionOverwrites: [
               {
@@ -546,12 +711,10 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
                 id: interaction.user.id,
                 allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
               },
-              ...guild.roles.cache
-                .filter((role: any) => role.name.toLowerCase().includes('middleman') || role.name.toLowerCase().includes('staff'))
-                .map((role: any) => ({
-                  id: role.id,
-                  allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
-                }))
+              {
+                id: '1365778314572333188', // Required role ID
+                allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'ManageMessages'],
+              }
             ],
           });
 

@@ -111,6 +111,7 @@ To use the Discord bot functionality:
 - `/add <ticket> <user>` - Add another party to an existing ticket (accepts user ID or mention)
 
 ## Changelog
+- June 26, 2025: Implemented role-based permissions and trade confirmation system with specific category placement
 - June 26, 2025: Added category system with all tickets dedicated to "middleman" category
 - June 26, 2025: Updated ticket numbering to start from 40,000 instead of 1
 - June 26, 2025: Added `/add` slash command to add another party to existing tickets
