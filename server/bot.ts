@@ -71,7 +71,19 @@ export class TradebloxBot {
       
       new SlashCommandBuilder()
         .setName('setup')
-        .setDescription('Setup the ticket creation embed (Admin only)')
+        .setDescription('Setup the ticket creation embed (Admin only)'),
+      
+      new SlashCommandBuilder()
+        .setName('add')
+        .setDescription('Add another party to a ticket')
+        .addStringOption(option =>
+          option.setName('ticket')
+            .setDescription('Ticket number')
+            .setRequired(true))
+        .addStringOption(option =>
+          option.setName('user')
+            .setDescription('User ID or mention (@username)')
+            .setRequired(true))
     ];
 
     this.client.once(Events.ClientReady, async () => {
@@ -104,6 +116,9 @@ export class TradebloxBot {
           break;
         case 'setup':
           await this.handleSetupCommand(interaction);
+          break;
+        case 'add':
+          await this.handleAddCommand(interaction);
           break;
         default:
           await interaction.reply({ content: 'Unknown command!', ephemeral: true });
@@ -206,6 +221,50 @@ export class TradebloxBot {
       await interaction.reply({ content: `🔒 Ticket ${ticketNumber} has been closed.`, embeds: [embed] });
     } else {
       await interaction.reply({ content: 'Failed to close ticket.', ephemeral: true });
+    }
+  }
+
+  private async handleAddCommand(interaction: any) {
+    const ticketNumber = interaction.options.getString('ticket');
+    const userInput = interaction.options.getString('user');
+    
+    // Find the ticket
+    const ticket = await storage.getTicketByNumber(ticketNumber);
+
+    if (!ticket) {
+      await interaction.reply({ content: `Ticket ${ticketNumber} not found.`, ephemeral: true });
+      return;
+    }
+
+    if (ticket.status === 'closed') {
+      await interaction.reply({ content: `Ticket ${ticketNumber} is already closed and cannot be modified.`, ephemeral: true });
+      return;
+    }
+
+    // Extract user ID from mention or use as-is if it's already an ID
+    let userId = userInput;
+    if (userInput.startsWith('<@') && userInput.endsWith('>')) {
+      // Remove <@ and > from mention
+      userId = userInput.slice(2, -1);
+      // Remove ! if it's a nickname mention
+      if (userId.startsWith('!')) {
+        userId = userId.slice(1);
+      }
+    }
+
+    // Update the ticket with the new other user
+    const updatedTicket = await storage.updateTicket(ticket.id, {
+      otherUserId: userId
+    });
+
+    if (updatedTicket) {
+      const embed = this.createTicketEmbed(updatedTicket);
+      await interaction.reply({ 
+        content: `✅ Successfully added user <@${userId}> to ticket ${ticketNumber}!`, 
+        embeds: [embed] 
+      });
+    } else {
+      await interaction.reply({ content: 'Failed to add user to ticket.', ephemeral: true });
     }
   }
 

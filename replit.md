@@ -107,8 +107,10 @@ To use the Discord bot functionality:
 - `/ticket <number>` - Shows specific ticket details
 - `/claim <number>` - Claim a ticket as middleman
 - `/close <number>` - Close a completed ticket
+- `/add <ticket> <user>` - Add another party to an existing ticket (accepts user ID or mention)
 
 ## Changelog
+- June 26, 2025: Added `/add` slash command to add another party to existing tickets
 - June 26, 2025: Added dropdown menu with 3 deal value tiers ($50, $150, $350) replacing the "Request a MM" button
 - June 26, 2025: Converted web application to Discord bot with full slash command integration
 - June 26, 2025: Initial setup

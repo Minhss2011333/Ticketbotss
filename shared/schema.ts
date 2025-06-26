@@ -37,9 +37,10 @@ export const insertTicketSchema = createInsertSchema(tickets).pick({
 });
 
 export const updateTicketSchema = z.object({
-  status: z.enum(["pending", "claimed", "closed"]),
+  status: z.enum(["pending", "claimed", "closed"]).optional(),
   claimedBy: z.string().optional(),
   claimedByName: z.string().optional(),
+  otherUserId: z.string().optional(),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
