@@ -37,6 +37,14 @@ export class TradebloxBot {
         await this.handleModalSubmit(interaction);
       }
     });
+
+    this.client.on(Events.MessageCreate, async (message) => {
+      if (message.author.bot) return;
+      
+      if (message.content === '!deletec') {
+        await this.handleDeleteChannelCommand(message);
+      }
+    });
   }
 
   private async setupCommands() {
@@ -222,6 +230,28 @@ export class TradebloxBot {
 
   private confirmations = new Map<number, Set<string>>(); // ticketId -> set of user IDs who confirmed
 
+  private async handleDeleteChannelCommand(message: any) {
+    // Check if user has the required middleman role
+    const member = message.member;
+    if (!member || !member.roles.cache.has('1365778314572333188')) {
+      await message.reply('You need the middleman role to delete channels.');
+      return;
+    }
+
+    const channel = message.channel;
+    if (!channel || !('delete' in channel)) {
+      await message.reply('This command can only be used in deletable channels.');
+      return;
+    }
+
+    try {
+      await channel.delete();
+    } catch (error) {
+      console.error('Error deleting channel:', error);
+      await message.reply('Failed to delete channel.');
+    }
+  }
+
   private async handleTradeConfirmation(interaction: any, action: 'confirm' | 'decline') {
     const ticketId = parseInt(interaction.customId.split('_')[2]);
     const ticket = await storage.getTicket(ticketId);
@@ -319,32 +349,34 @@ export class TradebloxBot {
   }
 
   private async handleAddCommand(interaction: any) {
+    // Check if user has the required middleman role
+    const member = interaction.member;
+    if (!member || !member.roles.cache.has('1365778314572333188')) {
+      await interaction.reply({ 
+        content: 'You need the middleman role to add users to tickets.', 
+        flags: 64 
+      });
+      return;
+    }
+
     const user = interaction.options.getUser('user');
     const channelName = interaction.channel?.name;
     
-    // Try to extract ticket number from channel name (e.g., "ticket-T001")
+    // Try to extract ticket number from channel name (e.g., "ticket-40000")
     let ticketNumber = null;
     if (channelName && channelName.startsWith('ticket-')) {
       ticketNumber = channelName.replace('ticket-', '');
     }
 
-    // If no ticket found from channel name, look for any ticket created by the user
+    // Find the ticket from channel name
     let ticket = null;
     if (ticketNumber) {
       ticket = await storage.getTicketByNumber(ticketNumber);
     }
 
-    // If still no ticket found, try to find the most recent ticket by the user
-    if (!ticket) {
-      const allTickets = await storage.getAllTickets();
-      ticket = allTickets
-        .filter(t => t.creatorId === interaction.user.id && t.status !== 'closed')
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-    }
-
     if (!ticket) {
       await interaction.reply({ 
-        content: 'No active ticket found. Use this command in a ticket channel or create a ticket first.', 
+        content: 'No ticket found for this channel.', 
         flags: 64 
       });
       return;

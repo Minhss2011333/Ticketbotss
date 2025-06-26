@@ -108,9 +108,11 @@ To use the Discord bot functionality:
 - `/ticket <number>` - Shows specific ticket details
 - `/claim <number>` - Claim a ticket as middleman
 - `/close <number>` - Close a completed ticket
-- `/add <ticket> <user>` - Add another party to an existing ticket (accepts user ID or mention)
+- `/add <user>` - Add another party to ticket (middleman role required)
+- `!deletec` - Instantly delete current channel (middleman role required)
 
 ## Changelog
+- June 26, 2025: Restricted `/add` command to middleman role only, added `!deletec` instant channel deletion command
 - June 26, 2025: Added automatic category overflow management to handle Discord's 50-channel limit per category
 - June 26, 2025: Implemented role-based permissions and trade confirmation system with specific category placement
 - June 26, 2025: Added category system with all tickets dedicated to "middleman" category
