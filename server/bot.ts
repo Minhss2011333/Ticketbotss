@@ -697,10 +697,51 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
         }
 
         try {
+          // Function to find or create available category
+          const findAvailableCategory = async () => {
+            const primaryCategory = guild.channels.cache.get('1365778563894349977');
+            
+            if (primaryCategory && primaryCategory.children.cache.size < 50) {
+              return '1365778563894349977';
+            }
+            
+            // Look for existing overflow categories
+            const overflowCategories = guild.channels.cache.filter(channel => 
+              channel.type === ChannelType.GuildCategory && 
+              channel.name.startsWith('Middleman Tickets')
+            );
+            
+            for (const [, category] of overflowCategories) {
+              if (category.children.cache.size < 50) {
+                return category.id;
+              }
+            }
+            
+            // Create new overflow category
+            const newCategory = await guild.channels.create({
+              name: `Middleman Tickets ${overflowCategories.size + 1}`,
+              type: ChannelType.GuildCategory,
+              permissionOverwrites: [
+                {
+                  id: guild.id,
+                  deny: ['ViewChannel'],
+                },
+                {
+                  id: '1365778314572333188', // Required role ID
+                  allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory', 'ManageMessages'],
+                }
+              ],
+            });
+            
+            return newCategory.id;
+          };
+
+          const categoryId = await findAvailableCategory();
+
           const ticketChannel = await guild.channels.create({
             name: `ticket-${ticket.ticketNumber.toLowerCase()}`,
             type: ChannelType.GuildText,
-            parent: '1365778563894349977', // Specific category ID
+            parent: categoryId,
             topic: `Middleman request by ${interaction.user.username}`,
             permissionOverwrites: [
               {
