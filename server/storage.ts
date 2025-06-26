@@ -26,7 +26,7 @@ export class MemStorage implements IStorage {
     this.tickets = new Map();
     this.currentUserId = 1;
     this.currentTicketId = 1;
-    this.ticketCounter = 1;
+    this.ticketCounter = 40000;
   }
 
   async getUser(id: number): Promise<User | undefined> {
@@ -64,7 +64,7 @@ export class MemStorage implements IStorage {
 
   async createTicket(insertTicket: InsertTicket): Promise<Ticket> {
     const id = this.currentTicketId++;
-    const ticketNumber = String(this.ticketCounter++).padStart(3, '0');
+    const ticketNumber = String(this.ticketCounter++);
     const ticket: Ticket = {
       ...insertTicket,
       id,
