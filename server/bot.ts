@@ -87,6 +87,14 @@ export class TradebloxBot {
         .addUserOption(option =>
           option.setName('user')
             .setDescription('User to add to the ticket')
+            .setRequired(true)),
+      
+      new SlashCommandBuilder()
+        .setName('finish')
+        .setDescription('Mark ticket as finished (Middleman only)')
+        .addStringOption(option =>
+          option.setName('number')
+            .setDescription('Ticket number to finish')
             .setRequired(true))
     ];
 
@@ -123,6 +131,9 @@ export class TradebloxBot {
           break;
         case 'add':
           await this.handleAddCommand(interaction);
+          break;
+        case 'finish':
+          await this.handleFinishCommand(interaction);
           break;
         default:
           await interaction.reply({ content: 'Unknown command!', flags: 64 });
@@ -345,6 +356,60 @@ export class TradebloxBot {
         embeds: [partialEmbed],
         components: interaction.message.components
       });
+    }
+  }
+
+  private async handleFinishCommand(interaction: any) {
+    // Check if user has the required middleman role
+    const member = interaction.member;
+    if (!member || !member.roles.cache.has('1365778314572333188')) {
+      await interaction.reply({ 
+        content: 'You need the middleman role to finish tickets.', 
+        flags: 64 
+      });
+      return;
+    }
+
+    const ticketNumber = interaction.options.getString('number');
+    const ticket = await storage.getTicketByNumber(ticketNumber);
+
+    if (!ticket) {
+      await interaction.reply({ 
+        content: `Ticket ${ticketNumber} not found.`, 
+        flags: 64 
+      });
+      return;
+    }
+
+    if (ticket.status === 'closed') {
+      await interaction.reply({ 
+        content: `Ticket ${ticketNumber} is already closed.`, 
+        flags: 64 
+      });
+      return;
+    }
+
+    try {
+      // Update ticket status to closed
+      await storage.updateTicket(ticket.id, { status: 'closed' });
+
+      // Create professional completion embed
+      const completionEmbed = new EmbedBuilder()
+        .setTitle('✅ Trade Completed')
+        .setDescription('This middleman ticket has been successfully completed.')
+        .addFields(
+          { name: 'Ticket Number', value: `#${ticket.ticketNumber}`, inline: true },
+          { name: 'Status', value: 'Closed', inline: true },
+          { name: 'Completed By', value: `<@${interaction.user.id}>`, inline: true }
+        )
+        .setColor(0x00ff00)
+        .setTimestamp();
+
+      await interaction.reply({ embeds: [completionEmbed] });
+      
+    } catch (error) {
+      console.error('Error finishing ticket:', error);
+      await interaction.reply({ content: 'Failed to finish ticket.', flags: 64 });
     }
   }
 

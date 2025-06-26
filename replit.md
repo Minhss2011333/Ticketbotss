@@ -109,6 +109,7 @@ To use the Discord bot functionality:
 - `/claim <number>` - Claim a ticket as middleman
 - `/close <number>` - Close a completed ticket
 - `/add <user>` - Add another party to ticket (middleman role required)
+- `/finish <number>` - Mark ticket as completed (middleman role required)
 - `!deletec` - Instantly delete current channel (middleman role required)
 
 ## Changelog
