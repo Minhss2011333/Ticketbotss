@@ -209,24 +209,33 @@ export class TradebloxBot {
 
   private async handleSetupCommand(interaction: any) {
     const embed = new EmbedBuilder()
-      .setTitle('🎫 Request a Middleman')
-      .setDescription('Need a secure middleman for your trade? Click the button below to create a ticket and get matched with a trusted middleman from our team.')
-      .addFields(
-        { name: '🛡️ Secure Trading', value: 'All trades are monitored and protected', inline: true },
-        { name: '⚡ Fast Response', value: 'Get matched with a middleman quickly', inline: true },
-        { name: '✅ Trusted Service', value: 'Join thousands of successful trades', inline: true }
-      )
-      .setColor(0xFFD700)
-      .setFooter({ text: 'Powered by Tradeblox' })
-      .setTimestamp();
+      .setTitle('Request a middleman')
+      .setDescription(`**Middleman Service**
+
+🔸 To request a middleman from Tradeblox | MM & Trading, click the Red "Request a MM" button on this message.
+
+**How does middleman work?**
+✕ Example: Trade is NFR Crow for Robux.
+Seller gives NFR Crow to middleman
+Buyer pays seller robux (After middleman confirms receiving pet)
+Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
+
+**NOTES:**
+1. You must both agree on the deal before using a middleman. Troll tickets will have consequences.
+
+2. Specify what you're trading (e.g. FR Frost Dragon in Adopt me > $20 USD LTC). Don't just put "adopt me" in the embed.
+
+**Trade Blox**`)
+      .setColor(0xFF8C00) // Orange color matching the theme
+      .setThumbnail('https://cdn.discordapp.com/attachments/your-image-url-here/tradeblox-logo.png') // You'll need to upload this
+      .setFooter({ text: 'Powered by ticketsbot.cloud', iconURL: 'https://cdn.discordapp.com/emojis/your-tickets-emoji.png' });
 
     const row = new ActionRowBuilder<ButtonBuilder>()
       .addComponents(
         new ButtonBuilder()
           .setCustomId('create_ticket')
-          .setLabel('Request a Middleman')
-          .setEmoji('🎫')
-          .setStyle(ButtonStyle.Primary)
+          .setLabel('Request a MM')
+          .setStyle(ButtonStyle.Danger) // Red button as shown in image
       );
 
     await interaction.reply({ embeds: [embed], components: [row] });
@@ -236,35 +245,35 @@ export class TradebloxBot {
     if (interaction.customId === 'create_ticket') {
       const modal = new ModalBuilder()
         .setCustomId('ticket_modal')
-        .setTitle('Create Middleman Request');
+        .setTitle('Middleman Request');
 
-      const dealInput = new TextInputBuilder()
-        .setCustomId('deal')
-        .setLabel('What are you trading?')
-        .setStyle(TextInputStyle.Paragraph)
-        .setPlaceholder('Describe what you\'re trading...')
-        .setRequired(true)
-        .setMaxLength(1000);
-
-      const amountInput = new TextInputBuilder()
-        .setCustomId('amount')
-        .setLabel('Trade Amount/Value')
+      const otherTraderInput = new TextInputBuilder()
+        .setCustomId('otherTrader')
+        .setLabel('What is the other trader\'s username?')
         .setStyle(TextInputStyle.Short)
-        .setPlaceholder('e.g., 5,000 Robux, $50, etc.')
+        .setPlaceholder('Enter username...')
         .setRequired(true)
         .setMaxLength(100);
 
-      const otherUserInput = new TextInputBuilder()
-        .setCustomId('otherUserId')
-        .setLabel('Other User\'s Discord ID')
+      const givingInput = new TextInputBuilder()
+        .setCustomId('giving')
+        .setLabel('What are you giving?')
         .setStyle(TextInputStyle.Short)
-        .setPlaceholder('123456789012345678')
+        .setPlaceholder('e.g., FR Frost Dragon in Adopt Me')
         .setRequired(true)
-        .setMaxLength(20);
+        .setMaxLength(200);
 
-      const firstActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(dealInput);
-      const secondActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(amountInput);
-      const thirdActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(otherUserInput);
+      const receivingInput = new TextInputBuilder()
+        .setCustomId('receiving')
+        .setLabel('What is the other trader giving?')
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('e.g., $20 USD LTC')
+        .setRequired(true)
+        .setMaxLength(200);
+
+      const firstActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(otherTraderInput);
+      const secondActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(givingInput);
+      const thirdActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(receivingInput);
 
       modal.addComponents(firstActionRow, secondActionRow, thirdActionRow);
 
@@ -293,6 +302,32 @@ export class TradebloxBot {
         const embed = this.createTicketEmbed(updatedTicket);
         await interaction.update({ embeds: [embed], components: [this.createTicketActionRow(updatedTicket)] });
       }
+    } else if (interaction.customId.startsWith('close_reason_')) {
+      const ticketId = parseInt(interaction.customId.replace('close_reason_', ''));
+      const ticket = await storage.getTicket(ticketId);
+
+      if (!ticket) {
+        await interaction.reply({ content: 'Ticket not found.', ephemeral: true });
+        return;
+      }
+
+      // Create modal for close reason
+      const modal = new ModalBuilder()
+        .setCustomId(`close_reason_modal_${ticketId}`)
+        .setTitle('Close Ticket with Reason');
+
+      const reasonInput = new TextInputBuilder()
+        .setCustomId('close_reason')
+        .setLabel('Reason for closing')
+        .setStyle(TextInputStyle.Paragraph)
+        .setPlaceholder('Enter reason for closing this ticket...')
+        .setRequired(true)
+        .setMaxLength(500);
+
+      const actionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(reasonInput);
+      modal.addComponents(actionRow);
+
+      await interaction.showModal(modal);
     } else if (interaction.customId.startsWith('close_')) {
       const ticketId = parseInt(interaction.customId.replace('close_', ''));
       const ticket = await storage.getTicket(ticketId);
@@ -314,31 +349,54 @@ export class TradebloxBot {
   }
 
   private async handleModalSubmit(interaction: any) {
-    if (interaction.customId === 'ticket_modal') {
-      const deal = interaction.fields.getTextInputValue('deal');
-      const amount = interaction.fields.getTextInputValue('amount');
-      const otherUserId = interaction.fields.getTextInputValue('otherUserId');
+    if (interaction.customId.startsWith('close_reason_modal_')) {
+      const ticketId = parseInt(interaction.customId.replace('close_reason_modal_', ''));
+      const reason = interaction.fields.getTextInputValue('close_reason');
+      
+      const updatedTicket = await storage.updateTicket(ticketId, {
+        status: 'closed'
+      });
+
+      if (updatedTicket) {
+        const embed = this.createTicketEmbed(updatedTicket);
+        await interaction.update({ 
+          embeds: [embed], 
+          components: [this.createTicketActionRow(updatedTicket)],
+          content: `Ticket closed with reason: ${reason}`
+        });
+      }
+    } else if (interaction.customId === 'ticket_modal') {
+      const otherTrader = interaction.fields.getTextInputValue('otherTrader');
+      const giving = interaction.fields.getTextInputValue('giving');
+      const receiving = interaction.fields.getTextInputValue('receiving');
 
       try {
         const ticketData = {
           creatorId: interaction.user.id,
           creatorName: interaction.user.displayName || interaction.user.username,
-          deal,
-          amount,
-          otherUserId
+          deal: `Trading: ${giving} ↔ ${receiving}`,
+          amount: `${giving} for ${receiving}`,
+          otherUserId: otherTrader
         };
 
         const validatedData = insertTicketSchema.parse(ticketData);
         const ticket = await storage.createTicket(validatedData);
 
-        const embed = this.createTicketEmbed(ticket);
-        const row = this.createTicketActionRow(ticket);
+        // Create the ticket display embed with action buttons
+        const ticketEmbed = this.createTicketDisplayEmbed(otherTrader, giving, receiving);
+        const actionRow = this.createTicketActionRow(ticket);
+        
+        // Send confirmation message
+        const confirmationEmbed = new EmbedBuilder()
+          .setDescription('Please wait until a trusted middleman claims your ticket!\n\nRemember patient is the key!')
+          .setColor(0x00DCDC) // Cyan color from the images
+          .setThumbnail('https://cdn.discordapp.com/attachments/your-tradeblox-logo-url/tradeblox-logo.png')
+          .setFooter({ text: 'Powered by tickets.bot', iconURL: 'https://cdn.discordapp.com/emojis/your-tickets-emoji.png' });
 
         await interaction.reply({ 
-          content: `✅ Ticket ${ticket.ticketNumber} created successfully!`, 
-          embeds: [embed], 
-          components: [row],
-          ephemeral: true 
+          embeds: [confirmationEmbed, ticketEmbed],
+          components: [actionRow],
+          ephemeral: false
         });
       } catch (error) {
         console.error('Error creating ticket:', error);
@@ -348,6 +406,15 @@ export class TradebloxBot {
         });
       }
     }
+  }
+
+  private createTicketDisplayEmbed(otherTrader: string, giving: string, receiving: string): EmbedBuilder {
+    const embed = new EmbedBuilder()
+      .setDescription(`**What is the other trader's username?**\n${otherTrader}\n\n**What are you giving?**\n${giving}\n\n**What is the other trader giving?**\n${receiving}`)
+      .setColor(0x00DCDC) // Cyan color matching the theme
+      .setFooter({ text: 'Powered by tickets.bot', iconURL: 'https://cdn.discordapp.com/emojis/your-tickets-emoji.png' });
+
+    return embed;
   }
 
   private createTicketEmbed(ticket: Ticket): EmbedBuilder {
@@ -361,7 +428,7 @@ export class TradebloxBot {
         { name: '📝 Deal Description', value: ticket.deal || 'No description', inline: false },
         { name: '💰 Amount/Value', value: ticket.amount || 'Not specified', inline: true },
         { name: '👤 Created By', value: `<@${ticket.creatorId}>`, inline: true },
-        { name: '🆔 Other User', value: `<@${ticket.otherUserId}>`, inline: true },
+        { name: '🆔 Other User', value: ticket.otherUserId || 'Not specified', inline: true },
         { name: '📊 Status', value: ticket.status.toUpperCase(), inline: true }
       )
       .setTimestamp(ticket.createdAt ? new Date(ticket.createdAt) : new Date())
@@ -372,6 +439,41 @@ export class TradebloxBot {
     }
 
     return embed;
+  }
+
+  private createTicketActionButtons(ticket: Ticket): ActionRowBuilder<ButtonBuilder> {
+    const row = new ActionRowBuilder<ButtonBuilder>();
+
+    // Close button (red)
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`close_${ticket.id}`)
+        .setLabel('Close')
+        .setEmoji('🔒')
+        .setStyle(ButtonStyle.Danger)
+    );
+
+    // Close with reason button (red)
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`close_reason_${ticket.id}`)
+        .setLabel('Close With Reason')
+        .setEmoji('🔒')
+        .setStyle(ButtonStyle.Danger)
+    );
+
+    // Claim button (green) - only if pending
+    if (ticket.status === 'pending') {
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`claim_${ticket.id}`)
+          .setLabel('Claim')
+          .setEmoji('🛡️')
+          .setStyle(ButtonStyle.Success)
+      );
+    }
+
+    return row;
   }
 
   private createTicketActionRow(ticket: Ticket): ActionRowBuilder<ButtonBuilder> {
