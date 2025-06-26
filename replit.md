@@ -110,9 +110,12 @@ To use the Discord bot functionality:
 - `/close <number>` - Close a completed ticket
 - `/add <user>` - Add another party to ticket (middleman role required)
 - `/finish <number>` - Mark ticket as completed (middleman role required)
+- `/fee` - Display middleman fee options with interactive buttons
+- `/tagmm` - Explain what a middleman is with examples
 - `!deletec` - Instantly delete current channel (middleman role required)
 
 ## Changelog
+- June 26, 2025: Added `/fee` and `/tagmm` commands with Tradeblox theme (yellow/orange colors) and interactive buttons
 - June 26, 2025: Restricted `/add` command to middleman role only, added `!deletec` instant channel deletion command
 - June 26, 2025: Added automatic category overflow management to handle Discord's 50-channel limit per category
 - June 26, 2025: Implemented role-based permissions and trade confirmation system with specific category placement

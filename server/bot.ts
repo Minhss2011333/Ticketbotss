@@ -95,7 +95,15 @@ export class TradebloxBot {
         .addStringOption(option =>
           option.setName('number')
             .setDescription('Ticket number to finish')
-            .setRequired(true))
+            .setRequired(true)),
+      
+      new SlashCommandBuilder()
+        .setName('fee')
+        .setDescription('Display middleman fee options'),
+      
+      new SlashCommandBuilder()
+        .setName('tagmm')
+        .setDescription('Explain what a middleman is')
     ];
 
     this.client.once(Events.ClientReady, async () => {
@@ -134,6 +142,12 @@ export class TradebloxBot {
           break;
         case 'finish':
           await this.handleFinishCommand(interaction);
+          break;
+        case 'fee':
+          await this.handleFeeCommand(interaction);
+          break;
+        case 'tagmm':
+          await this.handleTagMMCommand(interaction);
           break;
         default:
           await interaction.reply({ content: 'Unknown command!', flags: 64 });
@@ -413,6 +427,68 @@ export class TradebloxBot {
     }
   }
 
+  private async handleFeeCommand(interaction: any) {
+    const feeEmbed = new EmbedBuilder()
+      .setTitle('MM FEE')
+      .setDescription('**MM FEE**\nThank You For Using Our services\nYour items are currently being held for the time being.\n\nTo proceed with the trade, please make the necessary donations that the MM deserves.\nWe appreciate your cooperation.')
+      .setColor(0xFFA500) // Orange color for Tradeblox theme
+      .setTimestamp();
+
+    const feeInfoEmbed = new EmbedBuilder()
+      .setDescription('Please be patient while a MM will list a price\nDiscuss with your trader about how you would want to do the Fee.\n\nUsers are able to split the fee OR manage to pay the full fee if possible.\n(Once clicked, you can\'t redo)')
+      .setColor(0xFFD700); // Yellow color
+
+    const feeButtons = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('fee_split')
+          .setLabel('50% Each')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('fee_full')
+          .setLabel('100%')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({
+      embeds: [feeEmbed, feeInfoEmbed],
+      components: [feeButtons]
+    });
+  }
+
+  private async handleTagMMCommand(interaction: any) {
+    const mmEmbed = new EmbedBuilder()
+      .setTitle('What is Middleman?')
+      .setDescription('A middleman (MM) is a trusted person with many vouches who helps transactions go smoothly without scams.')
+      .setColor(0xFFA500); // Orange color for Tradeblox theme
+
+    const exampleEmbed = new EmbedBuilder()
+      .setTitle('Here is an example:')
+      .setDescription('Krisha has 8,000 Robux, and you want to give him an Adopt Me item. You both agree on the trade, so the middleman will take the Adopt Me item, and krisha will send the Robux to the person who had the item and then the middleman will give the item to krisha!')
+      .setColor(0xFFD700); // Yellow color
+
+    const footerEmbed = new EmbedBuilder()
+      .setDescription('Click below the option')
+      .setColor(0xFFA500);
+
+    const understandButtons = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('understand_yes')
+          .setLabel('I understand!')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId('understand_no')
+          .setLabel('I don\'t understand')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
+    await interaction.reply({
+      embeds: [mmEmbed, exampleEmbed, footerEmbed],
+      components: [understandButtons]
+    });
+  }
+
   private async handleAddCommand(interaction: any) {
     // Check if user has the required middleman role
     const member = interaction.member;
@@ -670,6 +746,47 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
           }
         }, 10000);
       }
+    } else if (interaction.customId === 'fee_split') {
+      const responseEmbed = new EmbedBuilder()
+        .setDescription(`<@${interaction.user.id}> has chosen to split the fee\n\n*both users must agree to split fee*`)
+        .setColor(0xFFA500);
+
+      const confirmationButtons = new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('fee_confirm')
+            .setEmoji('🤝')
+            .setLabel('1')
+            .setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder()
+            .setCustomId('fee_deny')
+            .setEmoji('😊')
+            .setLabel('')
+            .setStyle(ButtonStyle.Secondary)
+        );
+
+      await interaction.reply({
+        embeds: [responseEmbed],
+        components: [confirmationButtons]
+      });
+    } else if (interaction.customId === 'fee_full') {
+      const responseEmbed = new EmbedBuilder()
+        .setDescription(`<@${interaction.user.id}> has chosen to pay the full fee\n\n*Thank you for your cooperation*`)
+        .setColor(0xFFA500);
+
+      await interaction.reply({
+        embeds: [responseEmbed]
+      });
+    } else if (interaction.customId === 'understand_yes') {
+      await interaction.reply({
+        content: 'Great! You understand how middleman services work. Feel free to create a ticket when you need assistance.',
+        flags: 64
+      });
+    } else if (interaction.customId === 'understand_no') {
+      await interaction.reply({
+        content: 'No problem! Feel free to ask any questions in the server or read the explanation again. Our staff is here to help!',
+        flags: 64
+      });
     }
   }
 
