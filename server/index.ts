@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { TradebloxBot } from "./bot";
 
 const app = express();
 app.use(express.json());
@@ -36,6 +37,18 @@ app.use((req, res, next) => {
   next();
 });
 
+// Start Discord bot if token is provided
+let bot: TradebloxBot | null = null;
+const discordToken = process.env.DISCORD_BOT_TOKEN;
+
+if (discordToken) {
+  bot = new TradebloxBot(discordToken);
+  bot.start().catch(console.error);
+  log("Discord bot starting...", "bot");
+} else {
+  log("No DISCORD_BOT_TOKEN provided, skipping Discord bot startup", "bot");
+}
+
 (async () => {
   const server = await registerRoutes(app);
 
@@ -68,3 +81,22 @@ app.use((req, res, next) => {
     log(`serving on port ${port}`);
   });
 })();
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  log('Shutting down...', 'server');
+  if (bot) {
+    await bot.stop();
+    log('Discord bot stopped', 'bot');
+  }
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  log('Shutting down...', 'server');
+  if (bot) {
+    await bot.stop();
+    log('Discord bot stopped', 'bot');
+  }
+  process.exit(0);
+});

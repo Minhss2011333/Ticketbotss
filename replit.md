@@ -1,18 +1,17 @@
-# Tradeblox Ticket System
+# Tradeblox Discord Bot
 
 ## Overview
 
-This is a Discord-style ticket management system for the Tradeblox platform, designed to facilitate secure trading through middleman services. The application provides a Discord-like interface where users can request middlemen for trades and track ticket statuses.
+This is a Discord bot for the Tradeblox platform, designed to facilitate secure trading through middleman services. The bot provides interactive slash commands and embeds where users can request middlemen for trades and track ticket statuses directly within Discord servers.
 
 ## System Architecture
 
-### Frontend Architecture
-- **Framework**: React with TypeScript using Vite as the build tool
-- **UI Library**: Shadcn/ui components with Radix UI primitives
-- **Styling**: Tailwind CSS with custom Discord-themed design variables
-- **State Management**: TanStack Query (React Query) for server state
-- **Routing**: Wouter for client-side routing
-- **Form Handling**: React Hook Form with Zod validation
+### Discord Bot Architecture
+- **Bot Framework**: Discord.js v14 with TypeScript
+- **Interaction Handling**: Slash commands, buttons, and modals
+- **Command System**: Application commands with proper permission handling
+- **Embed System**: Rich embeds for ticket display and status updates
+- **Event System**: Real-time Discord event handling
 
 ### Backend Architecture
 - **Runtime**: Node.js with Express.js server
@@ -34,12 +33,12 @@ This is a Discord-style ticket management system for the Tradeblox platform, des
 2. **Tickets**: Trade request tickets with status tracking
 3. **Ticket Management**: Create, claim, and close ticket operations
 
-### Frontend Components
-- **DiscordInterface**: Main application shell mimicking Discord layout
-- **Sidebar**: Channel navigation and ticket listing
-- **TicketEmbed**: Interactive ticket creation interface
-- **TicketModal**: Form for creating new middleman requests
-- **TicketDetails**: Ticket management and status updates
+### Discord Bot Components
+- **TradebloxBot**: Main bot class handling all Discord interactions
+- **Slash Commands**: `/setup`, `/tickets`, `/ticket`, `/claim`, `/close`
+- **Interactive Elements**: Buttons for ticket claiming and closing
+- **Modal Forms**: Ticket creation form with validation
+- **Embed System**: Rich ticket displays with status indicators
 
 ### Backend Services
 - **Storage Interface**: Abstracted storage layer for future database integration
@@ -48,23 +47,23 @@ This is a Discord-style ticket management system for the Tradeblox platform, des
 
 ## Data Flow
 
-1. **Ticket Creation**: User fills form → Validation → Storage → UI update
-2. **Ticket Claiming**: Middleman claims ticket → Status update → Notification
-3. **Ticket Closure**: Final status update → Archive → UI refresh
-4. **Real-time Updates**: TanStack Query handles cache invalidation and refetching
+1. **Ticket Creation**: User clicks button → Modal form → Validation → Storage → Discord embed response
+2. **Ticket Claiming**: Middleman uses slash command or button → Status update → Discord embed update
+3. **Ticket Closure**: User/admin closes ticket → Final status update → Discord notification
+4. **Real-time Updates**: Discord interactions provide immediate feedback and updates
 
 ## External Dependencies
 
-### UI/Styling
-- Radix UI primitives for accessible components
-- Tailwind CSS for styling with custom color variables
-- Lucide React for consistent iconography
+### Discord Integration
+- Discord.js for bot framework and API interactions
+- Discord Developer Portal for bot registration and permissions
+- Slash commands for user interactions
+- Rich embeds for enhanced visual presentation
 
 ### Data Management
-- TanStack Query for server state management
-- React Hook Form for form handling
-- Zod for runtime type validation
+- Zod for runtime type validation and form schemas
 - Drizzle ORM for database operations
+- In-memory storage for development testing
 
 ### Development Tools
 - Vite for fast development and building
@@ -75,24 +74,43 @@ This is a Discord-style ticket management system for the Tradeblox platform, des
 ## Deployment Strategy
 
 ### Development Environment
-- **Command**: `npm run dev` starts both client and server
-- **Port**: Application runs on port 5000
-- **Hot Reload**: Vite provides instant client updates
+- **Command**: `npm run dev` starts both Express server and Discord bot
+- **Port**: Web server runs on port 5000 (for API and fallback web interface)
+- **Bot Token**: Requires `DISCORD_BOT_TOKEN` environment variable for Discord bot functionality
 - **Database**: Uses in-memory storage for development
 
 ### Production Build
-- **Build Process**: Vite builds client, ESBuild bundles server
-- **Static Assets**: Client built to `dist/public`
-- **Server Bundle**: Node.js compatible ES modules
-- **Environment**: Requires `DATABASE_URL` for PostgreSQL connection
+- **Build Process**: ESBuild bundles server with Discord bot integration
+- **Server Bundle**: Node.js compatible ES modules with Discord.js
+- **Environment Variables**: 
+  - `DISCORD_BOT_TOKEN` for Discord bot functionality
+  - `DATABASE_URL` for PostgreSQL connection (optional, falls back to in-memory storage)
 
 ### Replit Configuration
 - **Modules**: Node.js 20, Web, PostgreSQL 16
 - **Deployment**: Autoscale deployment target
 - **Workflows**: Parallel execution with port waiting
 
+## Discord Bot Setup
+
+To use the Discord bot functionality:
+
+1. **Create Discord Application**: Visit Discord Developer Portal and create a new application
+2. **Create Bot User**: Add a bot to your application and copy the bot token
+3. **Set Environment Variable**: Add `DISCORD_BOT_TOKEN` to your Replit Secrets
+4. **Invite Bot**: Generate invite URL with `bot` and `applications.commands` scopes
+5. **Start Bot**: The bot automatically starts when the server runs
+
+### Available Commands
+- `/setup` - Creates ticket request embed (admin use)
+- `/tickets` - Lists all tickets in the system
+- `/ticket <number>` - Shows specific ticket details
+- `/claim <number>` - Claim a ticket as middleman
+- `/close <number>` - Close a completed ticket
+
 ## Changelog
-- June 26, 2025. Initial setup
+- June 26, 2025: Converted web application to Discord bot with full slash command integration
+- June 26, 2025: Initial setup
 
 ## User Preferences
 
