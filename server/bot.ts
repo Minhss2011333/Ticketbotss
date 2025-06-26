@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, Events, ComponentType } from 'discord.js';
+import { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, Events, ComponentType, ChannelType } from 'discord.js';
 import { storage } from './storage.js';
 import { insertTicketSchema, Ticket } from '../shared/schema.js';
 import { z } from 'zod';
@@ -226,16 +226,15 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
 2. Specify what you're trading (e.g. FR Frost Dragon in Adopt me > $20 USD LTC). Don't just put "adopt me" in the embed.
 
 **Trade Blox**`)
-      .setColor(0xFF8C00) // Orange color matching the theme
-      .setThumbnail('https://cdn.discordapp.com/attachments/your-image-url-here/tradeblox-logo.png') // You'll need to upload this
-      .setFooter({ text: 'Powered by ticketsbot.cloud', iconURL: 'https://cdn.discordapp.com/emojis/your-tickets-emoji.png' });
+      .setColor(0xFF8C00)
+      .setFooter({ text: 'Powered by ticketsbot.cloud' });
 
     const row = new ActionRowBuilder<ButtonBuilder>()
       .addComponents(
         new ButtonBuilder()
           .setCustomId('create_ticket')
           .setLabel('Request a MM')
-          .setStyle(ButtonStyle.Danger) // Red button as shown in image
+          .setStyle(ButtonStyle.Danger)
       );
 
     await interaction.reply({ embeds: [embed], components: [row] });
@@ -311,7 +310,6 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
         return;
       }
 
-      // Create modal for close reason
       const modal = new ModalBuilder()
         .setCustomId(`close_reason_modal_${ticketId}`)
         .setTitle('Close Ticket with Reason');
@@ -342,8 +340,20 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
       });
 
       if (updatedTicket) {
-        const embed = this.createTicketEmbed(updatedTicket);
-        await interaction.update({ embeds: [embed], components: [this.createTicketActionRow(updatedTicket)] });
+        await interaction.reply({
+          content: `🔒 Ticket ${updatedTicket.ticketNumber} has been closed. This channel will be deleted in 10 seconds.`,
+          ephemeral: false
+        });
+
+        setTimeout(async () => {
+          try {
+            if (interaction.channel && 'delete' in interaction.channel) {
+              await interaction.channel.delete();
+            }
+          } catch (error) {
+            console.error('Error deleting ticket channel:', error);
+          }
+        }, 10000);
       }
     }
   }
@@ -358,12 +368,20 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
       });
 
       if (updatedTicket) {
-        const embed = this.createTicketEmbed(updatedTicket);
-        await interaction.update({ 
-          embeds: [embed], 
-          components: [this.createTicketActionRow(updatedTicket)],
-          content: `Ticket closed with reason: ${reason}`
+        await interaction.reply({
+          content: `🔒 Ticket closed with reason: ${reason}. This channel will be deleted in 10 seconds.`,
+          ephemeral: false
         });
+
+        setTimeout(async () => {
+          try {
+            if (interaction.channel && 'delete' in interaction.channel) {
+              await interaction.channel.delete();
+            }
+          } catch (error) {
+            console.error('Error deleting ticket channel:', error);
+          }
+        }, 10000);
       }
     } else if (interaction.customId === 'ticket_modal') {
       const otherTrader = interaction.fields.getTextInputValue('otherTrader');
@@ -382,22 +400,61 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
         const validatedData = insertTicketSchema.parse(ticketData);
         const ticket = await storage.createTicket(validatedData);
 
-        // Create the ticket display embed with action buttons
-        const ticketEmbed = this.createTicketDisplayEmbed(otherTrader, giving, receiving);
-        const actionRow = this.createTicketActionRow(ticket);
-        
-        // Send confirmation message
-        const confirmationEmbed = new EmbedBuilder()
-          .setDescription('Please wait until a trusted middleman claims your ticket!\n\nRemember patient is the key!')
-          .setColor(0x00DCDC) // Cyan color from the images
-          .setThumbnail('https://cdn.discordapp.com/attachments/your-tradeblox-logo-url/tradeblox-logo.png')
-          .setFooter({ text: 'Powered by tickets.bot', iconURL: 'https://cdn.discordapp.com/emojis/your-tickets-emoji.png' });
+        const guild = interaction.guild;
+        if (!guild) {
+          await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+          return;
+        }
 
-        await interaction.reply({ 
-          embeds: [confirmationEmbed, ticketEmbed],
-          components: [actionRow],
-          ephemeral: false
-        });
+        try {
+          const ticketChannel = await guild.channels.create({
+            name: `ticket-${ticket.ticketNumber.toLowerCase()}`,
+            type: ChannelType.GuildText,
+            topic: `Middleman request by ${interaction.user.username}`,
+            permissionOverwrites: [
+              {
+                id: guild.id,
+                deny: ['ViewChannel'],
+              },
+              {
+                id: interaction.user.id,
+                allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
+              },
+              ...guild.roles.cache
+                .filter(role => role.name.toLowerCase().includes('middleman') || role.name.toLowerCase().includes('staff'))
+                .map(role => ({
+                  id: role.id,
+                  allow: ['ViewChannel', 'SendMessages', 'ReadMessageHistory'],
+                }))
+            ],
+          });
+
+          const ticketEmbed = this.createTicketDisplayEmbed(otherTrader, giving, receiving);
+          const actionRow = this.createTicketActionRow(ticket);
+          
+          const confirmationEmbed = new EmbedBuilder()
+            .setDescription('Please wait until a trusted middleman claims your ticket!\n\nRemember patient is the key!')
+            .setColor(0x00DCDC)
+            .setFooter({ text: 'Powered by tickets.bot' });
+
+          await ticketChannel.send({ 
+            content: `<@${interaction.user.id}> Your ticket has been created!`,
+            embeds: [confirmationEmbed, ticketEmbed],
+            components: [actionRow]
+          });
+
+          await interaction.reply({ 
+            content: `✅ Ticket created! Please check ${ticketChannel}`,
+            ephemeral: true
+          });
+
+        } catch (error) {
+          console.error('Error creating ticket channel:', error);
+          await interaction.reply({ 
+            content: 'Failed to create ticket channel. Please contact an administrator.', 
+            ephemeral: true 
+          });
+        }
       } catch (error) {
         console.error('Error creating ticket:', error);
         await interaction.reply({ 
@@ -411,8 +468,8 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
   private createTicketDisplayEmbed(otherTrader: string, giving: string, receiving: string): EmbedBuilder {
     const embed = new EmbedBuilder()
       .setDescription(`**What is the other trader's username?**\n${otherTrader}\n\n**What are you giving?**\n${giving}\n\n**What is the other trader giving?**\n${receiving}`)
-      .setColor(0x00DCDC) // Cyan color matching the theme
-      .setFooter({ text: 'Powered by tickets.bot', iconURL: 'https://cdn.discordapp.com/emojis/your-tickets-emoji.png' });
+      .setColor(0x00DCDC)
+      .setFooter({ text: 'Powered by tickets.bot' });
 
     return embed;
   }
@@ -441,28 +498,9 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
     return embed;
   }
 
-  private createTicketActionButtons(ticket: Ticket): ActionRowBuilder<ButtonBuilder> {
+  private createTicketActionRow(ticket: Ticket): ActionRowBuilder<ButtonBuilder> {
     const row = new ActionRowBuilder<ButtonBuilder>();
 
-    // Close button (red)
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`close_${ticket.id}`)
-        .setLabel('Close')
-        .setEmoji('🔒')
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    // Close with reason button (red)
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`close_reason_${ticket.id}`)
-        .setLabel('Close With Reason')
-        .setEmoji('🔒')
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    // Claim button (green) - only if pending
     if (ticket.status === 'pending') {
       row.addComponents(
         new ButtonBuilder()
@@ -473,27 +511,19 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
       );
     }
 
-    return row;
-  }
-
-  private createTicketActionRow(ticket: Ticket): ActionRowBuilder<ButtonBuilder> {
-    const row = new ActionRowBuilder<ButtonBuilder>();
-
-    if (ticket.status === 'pending') {
-      row.addComponents(
-        new ButtonBuilder()
-          .setCustomId(`claim_${ticket.id}`)
-          .setLabel('Claim Ticket')
-          .setEmoji('🎯')
-          .setStyle(ButtonStyle.Success)
-      );
-    }
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`close_${ticket.id}`)
+        .setLabel('Close')
+        .setEmoji('🔒')
+        .setStyle(ButtonStyle.Danger)
+    );
 
     if (ticket.status !== 'closed') {
       row.addComponents(
         new ButtonBuilder()
-          .setCustomId(`close_${ticket.id}`)
-          .setLabel('Close Ticket')
+          .setCustomId(`close_reason_${ticket.id}`)
+          .setLabel('Close With Reason')
           .setEmoji('🔒')
           .setStyle(ButtonStyle.Danger)
       );
