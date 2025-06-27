@@ -138,7 +138,11 @@ export class TradebloxBot {
         .addAttachmentOption(option =>
           option.setName('screenshot')
             .setDescription('Upload a screenshot of the trade')
-            .setRequired(false))
+            .setRequired(false)),
+      
+      new SlashCommandBuilder()
+        .setName('apple')
+        .setDescription('Get the Apple role')
     ];
 
     this.client.once(Events.ClientReady, async () => {
@@ -205,6 +209,9 @@ export class TradebloxBot {
           break;
         case 'activity':
           await this.handleActivityCommand(interaction);
+          break;
+        case 'apple':
+          await this.handleAppleCommand(interaction);
           break;
         default:
           await interaction.reply({ content: 'Unknown command!', flags: 64 });
@@ -616,6 +623,43 @@ export class TradebloxBot {
       embeds: [activityEmbed],
       ephemeral: false
     });
+  }
+
+  private async handleAppleCommand(interaction: any) {
+    const roleId = '1365778320951738599';
+    const member = interaction.member;
+
+    if (!member) {
+      await interaction.reply({ 
+        content: 'Unable to assign role - member not found.', 
+        flags: 64 
+      });
+      return;
+    }
+
+    try {
+      // Check if user already has the role
+      if (member.roles.cache.has(roleId)) {
+        await interaction.reply({ 
+          content: 'You already have the Apple role!', 
+          flags: 64 
+        });
+        return;
+      }
+
+      // Add the role
+      await member.roles.add(roleId);
+      await interaction.reply({ 
+        content: '🍎 Apple role has been assigned to you!', 
+        flags: 64 
+      });
+    } catch (error) {
+      console.error('Error assigning Apple role:', error);
+      await interaction.reply({ 
+        content: 'Failed to assign the Apple role. Please contact an administrator.', 
+        flags: 64 
+      });
+    }
   }
 
   private async handleTagMMCommand(interaction: any) {

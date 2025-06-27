@@ -114,6 +114,7 @@ To use the Discord bot functionality:
 - `/fee` - Display middleman fee options with interactive buttons
 - `/tagmm` - Explain what a middleman is (admin only)
 - `/activity` - Post middleman activity report with Discord user selection, MM limit, and file upload (middleman only)
+- `/apple` - Get the Apple role (role ID: 1365778320951738599)
 - `!deletec` - Instantly delete current channel (admin only)
 
 ## Changelog
