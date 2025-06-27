@@ -114,11 +114,11 @@ To use the Discord bot functionality:
 - `/fee` - Display middleman fee options with interactive buttons
 - `/tagmm` - Explain what a middleman is (admin only)
 - `/activity` - Post middleman activity report with Discord user selection, MM limit, and file upload (middleman only)
-- `/apple` - Join development team with confirmation (assigns role ID: 1365778320951738599, public responses)
+- `!apple` - Join development team with confirmation (assigns role ID: 1365778320951738599, public responses)
 - `!deletec` - Instantly delete current channel (admin only)
 
 ## Changelog
-- June 27, 2025: Enhanced `/apple` command with public confirmation system - users get prompted to join development team with Yes/No buttons, Yes assigns role, No gives 2-hour timeout, all responses visible to everyone
+- June 27, 2025: Changed `/apple` to `!apple` text command with public confirmation system - users get prompted to join development team with Yes/No buttons, Yes assigns role, No gives 2-hour timeout, all responses visible to everyone
 - June 27, 2025: Implemented PostgreSQL database integration to fix ticket persistence issues - tickets now maintain proper numbering sequence and data survives bot restarts, added MM limit field to `/activity` command
 - June 27, 2025: Fixed ticket timeout system (removed automatic deletion), added `/unclaim` command for middlemen to release claimed tickets, implemented channel permission restrictions so only the claimer can talk in claimed tickets, updated `/tagmm` responses to show publicly instead of privately, and added `/activity` command for middlemen to post activity reports with trade details and screenshots
 - June 27, 2025: Enhanced mobile experience with copy-friendly embed formats, added role ping notifications when tickets are created, and fixed role-based command restrictions using proper Discord.js role checking

@@ -51,6 +51,10 @@ export class TradebloxBot {
       if (message.content === '!deletec') {
         await this.handleDeleteChannelCommand(message);
       }
+      
+      if (message.content === '!apple') {
+        await this.handleAppleTextCommand(message);
+      }
     });
   }
 
@@ -140,9 +144,7 @@ export class TradebloxBot {
             .setDescription('Upload a screenshot of the trade')
             .setRequired(false)),
       
-      new SlashCommandBuilder()
-        .setName('apple')
-        .setDescription('Get the Apple role')
+
     ];
 
     this.client.once(Events.ClientReady, async () => {
@@ -211,9 +213,7 @@ export class TradebloxBot {
         case 'activity':
           await this.handleActivityCommand(interaction);
           break;
-        case 'apple':
-          await this.handleAppleCommand(interaction);
-          break;
+
         default:
           await interaction.reply({ content: 'Unknown command!', flags: 64 });
       }
@@ -633,30 +633,24 @@ export class TradebloxBot {
     });
   }
 
-  private async handleAppleCommand(interaction: any) {
+  private async handleAppleTextCommand(message: any) {
     const roleId = '1365778320951738599';
-    const member = interaction.member;
+    const member = message.member;
 
     if (!member) {
-      await interaction.reply({ 
-        content: 'Unable to process request - member not found.', 
-        ephemeral: false 
-      });
+      await message.reply('Unable to process request - member not found.');
       return;
     }
 
     // Check if user already has the role
     if (member.roles.cache.has(roleId)) {
-      await interaction.reply({ 
-        content: `${interaction.user.username} already has the Apple role!`, 
-        ephemeral: false 
-      });
+      await message.reply(`${message.author.username} already has the Apple role!`);
       return;
     }
 
     // Create confirmation embed and buttons
     const confirmEmbed = new EmbedBuilder()
-      .setTitle(`# Hello ${interaction.user.username}`)
+      .setTitle(`# Hello ${message.author.username}`)
       .setDescription('Are you willing to join our development team?')
       .setColor(0x00FF00)
       .setTimestamp();
@@ -664,19 +658,18 @@ export class TradebloxBot {
     const confirmButtons = new ActionRowBuilder<ButtonBuilder>()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId(`apple_yes_${interaction.user.id}`)
+          .setCustomId(`apple_yes_${message.author.id}`)
           .setLabel('Yes')
           .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
-          .setCustomId(`apple_no_${interaction.user.id}`)
+          .setCustomId(`apple_no_${message.author.id}`)
           .setLabel('No')
           .setStyle(ButtonStyle.Danger)
       );
 
-    await interaction.reply({
+    await message.reply({
       embeds: [confirmEmbed],
-      components: [confirmButtons],
-      ephemeral: false
+      components: [confirmButtons]
     });
   }
 
