@@ -153,7 +153,21 @@ export class TradebloxBot {
     this.client.once(Events.ClientReady, async () => {
       try {
         console.log('Refreshing application (/) commands.');
+        
+        // Register commands globally so they appear for all users
         await this.client.application?.commands.set(commands);
+        
+        // Also register commands for each guild to ensure immediate availability
+        const guilds = this.client.guilds.cache;
+        for (const [guildId, guild] of guilds) {
+          try {
+            await guild.commands.set(commands);
+            console.log(`Commands registered for guild: ${guild.name}`);
+          } catch (guildError) {
+            console.error(`Error registering commands for guild ${guild.name}:`, guildError);
+          }
+        }
+        
         console.log('Successfully reloaded application (/) commands.');
       } catch (error) {
         console.error('Error refreshing commands:', error);
