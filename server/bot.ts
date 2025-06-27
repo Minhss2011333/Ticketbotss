@@ -158,6 +158,7 @@ export class TradebloxBot {
 
   private async handleSlashCommand(interaction: any) {
     const { commandName } = interaction;
+    console.log(`[BOT] Received slash command: ${commandName} from ${interaction.user.tag}`);
 
     try {
       switch (commandName) {
@@ -217,8 +218,15 @@ export class TradebloxBot {
           await interaction.reply({ content: 'Unknown command!', flags: 64 });
       }
     } catch (error) {
-      console.error('Error handling slash command:', error);
-      await interaction.reply({ content: 'An error occurred while processing your command.', flags: 64 });
+      console.error(`[BOT] Error handling slash command '${commandName}':`, error);
+      console.error(`[BOT] Error stack:`, error.stack);
+      if (!interaction.replied && !interaction.deferred) {
+        try {
+          await interaction.reply({ content: 'An error occurred while processing your command.', flags: 64 });
+        } catch (replyError) {
+          console.error(`[BOT] Failed to send error reply:`, replyError);
+        }
+      }
     }
   }
 
