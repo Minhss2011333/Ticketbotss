@@ -115,6 +115,7 @@ To use the Discord bot functionality:
 - `!deletec` - Instantly delete current channel (admin only)
 
 ## Changelog
+- June 27, 2025: Enhanced mobile experience with copy-friendly embed formats, added role ping notifications when tickets are created, and fixed role-based command restrictions using proper Discord.js role checking
 - June 27, 2025: Implemented role-based restrictions for administrative commands - only users with role ID `1365778314572333188` can use `/setup`, `/tagmm`, `/add`, `/finish`, and `!deletec` commands
 - June 26, 2025: Added `/fee` and `/tagmm` commands with Tradeblox theme (yellow/orange colors) and interactive buttons
 - June 26, 2025: Restricted `/add` command to middleman role only, added `!deletec` instant channel deletion command

@@ -24,7 +24,8 @@ export class TradebloxBot {
 
   private hasAdminRole(interaction: any): boolean {
     if (!interaction.member || !interaction.member.roles) return false;
-    return interaction.member.roles.cache.has(this.ADMIN_ROLE_ID);
+    // Check if user has the admin role
+    return interaction.member.roles.cache.some((role: any) => role.id === this.ADMIN_ROLE_ID);
   }
 
   private setupEventHandlers() {
@@ -203,7 +204,24 @@ export class TradebloxBot {
       }
     }
 
-    await interaction.reply({ embeds: [embed] });
+    // Create plain text format for mobile copying
+    let plainTextList = '';
+    if (tickets.length > 0) {
+      plainTextList = '\n**Copy-friendly format:**\n```\n';
+      tickets.slice(0, 10).forEach(ticket => {
+        const status = ticket.status === 'pending' ? 'PENDING' : ticket.status === 'claimed' ? 'CLAIMED' : 'CLOSED';
+        plainTextList += `Ticket: ${ticket.ticketNumber} | Status: ${status}\n`;
+        plainTextList += `Deal: ${ticket.deal || 'No description'}\n`;
+        plainTextList += `Creator: ${ticket.creatorName || 'Unknown'}\n`;
+        plainTextList += `---\n`;
+      });
+      plainTextList += '```';
+    }
+
+    await interaction.reply({ 
+      embeds: [embed],
+      content: plainTextList || undefined
+    });
   }
 
   private async handleTicketCommand(interaction: any) {
@@ -218,7 +236,14 @@ export class TradebloxBot {
     const embed = this.createTicketEmbed(ticket);
     const row = this.createTicketActionRow(ticket);
 
-    await interaction.reply({ embeds: [embed], components: [row] });
+    // Create plain text version for mobile copying
+    const plainText = `\n**Copy-friendly format:**\n\`\`\`\nTicket: ${ticket.ticketNumber}\nStatus: ${ticket.status.toUpperCase()}\nDeal: ${ticket.deal || 'No description'}\nAmount: ${ticket.amount || 'Not specified'}\nCreator: ${ticket.creatorName || 'Unknown'}\nOther User: ${ticket.otherUserId || 'Not specified'}\n${ticket.claimedBy ? `Claimed By: ${ticket.claimedByName || 'Unknown'}\n` : ''}\`\`\``;
+
+    await interaction.reply({ 
+      embeds: [embed], 
+      components: [row],
+      content: plainText
+    });
   }
 
   private async handleClaimCommand(interaction: any) {
@@ -280,7 +305,7 @@ export class TradebloxBot {
   private async handleDeleteChannelCommand(message: any) {
     // Check if user has the required admin role
     const member = message.member;
-    if (!member || !member.roles.cache.has(this.ADMIN_ROLE_ID)) {
+    if (!member || !member.roles.cache.some((role: any) => role.id === this.ADMIN_ROLE_ID)) {
       await message.reply('You do not have permission to delete channels.');
       return;
     }
@@ -1004,7 +1029,7 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
             .setFooter({ text: 'Powered by tickets.bot' });
 
           await ticketChannel.send({ 
-            content: `<@${interaction.user.id}> Your ticket has been created!`,
+            content: `<@${interaction.user.id}> <@&${this.ADMIN_ROLE_ID}> New ticket created!`,
             embeds: [confirmationEmbed, ticketEmbed],
             components: [actionRow]
           });
@@ -1032,8 +1057,27 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
   }
 
   private createTicketDisplayEmbed(otherTrader: string, giving: string, receiving: string, dealValue?: string): EmbedBuilder {
+    // Mobile-friendly format with clear line breaks and easy-to-copy text
+    const description = `**Deal Value:** ${dealValue || 'Not specified'}
+
+**Other Trader:** ${otherTrader}
+
+**You Give:** ${giving}
+
+**You Receive:** ${receiving}
+
+**Trade Summary:**
+${giving} ↔ ${receiving}
+
+**Copy-friendly format:**
+Trader: ${otherTrader}
+Giving: ${giving}
+Receiving: ${receiving}
+Value: ${dealValue || 'Not specified'}`;
+
     const embed = new EmbedBuilder()
-      .setDescription(`${dealValue ? `**Deal Value Range:** ${dealValue}\n\n` : ''}**What is the other trader's username?**\n${otherTrader}\n\n**What are you giving?**\n${giving}\n\n**What is the other trader giving?**\n${receiving}`)
+      .setTitle('🎯 Middleman Request')
+      .setDescription(description)
       .setColor(0x00DCDC)
       .setFooter({ text: 'Powered by tickets.bot' });
 
@@ -1044,22 +1088,34 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
     const statusEmoji = ticket.status === 'pending' ? '🟢' : ticket.status === 'claimed' ? '🟡' : '🔴';
     const statusColor = ticket.status === 'pending' ? 0x00FF00 : ticket.status === 'claimed' ? 0xFFFF00 : 0xFF0000;
 
+    // Create mobile-friendly description with copy-friendly format
+    const description = `**Status:** ${ticket.status.toUpperCase()} ${statusEmoji}
+
+**Deal:** ${ticket.deal || 'No description'}
+
+**Amount:** ${ticket.amount || 'Not specified'}
+
+**Created By:** <@${ticket.creatorId}>
+
+**Other User:** ${ticket.otherUserId || 'Not specified'}
+
+${ticket.claimedBy ? `**Claimed By:** <@${ticket.claimedBy}>` : ''}
+
+**Copy-friendly format:**
+Ticket: ${ticket.ticketNumber}
+Status: ${ticket.status.toUpperCase()}
+Deal: ${ticket.deal || 'No description'}
+Amount: ${ticket.amount || 'Not specified'}
+Creator: ${ticket.creatorName || 'Unknown'}
+Other User: ${ticket.otherUserId || 'Not specified'}
+${ticket.claimedBy ? `Claimed By: ${ticket.claimedByName || 'Unknown'}` : ''}`;
+
     const embed = new EmbedBuilder()
       .setTitle(`${statusEmoji} Ticket ${ticket.ticketNumber}`)
+      .setDescription(description)
       .setColor(statusColor)
-      .addFields(
-        { name: '📝 Deal Description', value: ticket.deal || 'No description', inline: false },
-        { name: '💰 Amount/Value', value: ticket.amount || 'Not specified', inline: true },
-        { name: '👤 Created By', value: `<@${ticket.creatorId}>`, inline: true },
-        { name: '🆔 Other User', value: ticket.otherUserId || 'Not specified', inline: true },
-        { name: '📊 Status', value: ticket.status.toUpperCase(), inline: true }
-      )
       .setTimestamp(ticket.createdAt ? new Date(ticket.createdAt) : new Date())
       .setFooter({ text: 'Powered by Tradeblox' });
-
-    if (ticket.claimedBy) {
-      embed.addFields({ name: '🎯 Claimed By', value: `<@${ticket.claimedBy}>`, inline: true });
-    }
 
     return embed;
   }
