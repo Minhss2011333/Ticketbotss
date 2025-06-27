@@ -1071,14 +1071,11 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
       const screenshot = interaction.fields.getTextInputValue('screenshot');
 
       const activityEmbed = new EmbedBuilder()
-        .setTitle('📊 Middleman Activity Report')
-        .setDescription(`**Trade Details:**\n${tradeDetails}\n\n**Trading Partner:**\n${person}`)
+        .setTitle('MM Activity')
+        .setDescription(`**Details:** ${tradeDetails}\n\n**With:** ${person}\n\n**By:** <@${interaction.user.id}>`)
         .setColor(0xFFA500)
-        .addFields(
-          { name: 'Middleman', value: `<@${interaction.user.id}>`, inline: true },
-          { name: 'Posted At', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true }
-        )
-        .setFooter({ text: 'Middleman Activity Log' });
+        .setTimestamp()
+        .setFooter({ text: 'Middleman Activity' });
 
       if (screenshot && screenshot.trim()) {
         try {
@@ -1086,10 +1083,8 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
           new URL(screenshot);
           activityEmbed.setImage(screenshot);
         } catch (error) {
-          // If invalid URL, add it as a field instead
-          activityEmbed.addFields(
-            { name: 'Screenshot/Evidence', value: screenshot, inline: false }
-          );
+          // If invalid URL, treat as text
+          activityEmbed.setDescription(`**Details:** ${tradeDetails}\n\n**With:** ${person}\n\n**Screenshot/Evidence:** ${screenshot}\n\n**By:** <@${interaction.user.id}>`);
         }
       }
 
