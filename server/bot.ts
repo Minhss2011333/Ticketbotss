@@ -131,6 +131,10 @@ export class TradebloxBot {
           option.setName('details')
             .setDescription('Enter trade details')
             .setRequired(true))
+        .addStringOption(option =>
+          option.setName('mm_limit')
+            .setDescription('Your middleman limit (e.g., $500, 1000 Robux)')
+            .setRequired(true))
         .addAttachmentOption(option =>
           option.setName('screenshot')
             .setDescription('Upload a screenshot of the trade')
@@ -583,11 +587,12 @@ export class TradebloxBot {
 
     const trader = interaction.options.getUser('trader');
     const details = interaction.options.getString('details');
+    const mmLimit = interaction.options.getString('mm_limit');
     const screenshot = interaction.options.getAttachment('screenshot');
 
     const activityEmbed = new EmbedBuilder()
       .setTitle('MM Activity')
-      .setDescription(`**Details:** ${details}\n\n**With:** <@${trader.id}>\n\n**By:** <@${interaction.user.id}>`)
+      .setDescription(`**Details:** ${details}\n\n**With:** <@${trader.id}>\n\n**MM Limit:** ${mmLimit}\n\n**By:** <@${interaction.user.id}>`)
       .setColor(0xFFA500)
       .setTimestamp()
       .setFooter({ text: 'Middleman Activity' });
