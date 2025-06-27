@@ -107,14 +107,17 @@ To use the Discord bot functionality:
 - `/tickets` - Lists all tickets in the system
 - `/ticket <number>` - Shows specific ticket details
 - `/claim <number>` - Claim a ticket as middleman
+- `/unclaim <number>` - Unclaim a ticket (only the claimer can use)
 - `/close <number>` - Close a completed ticket
 - `/add <user>` - Add another party to ticket (admin only)
 - `/finish <number>` - Mark ticket as completed (admin only)
 - `/fee` - Display middleman fee options with interactive buttons
 - `/tagmm` - Explain what a middleman is (admin only)
+- `/activity` - Post middleman activity report (middleman only)
 - `!deletec` - Instantly delete current channel (admin only)
 
 ## Changelog
+- June 27, 2025: Fixed ticket timeout system (removed automatic deletion), added `/unclaim` command for middlemen to release claimed tickets, implemented channel permission restrictions so only the claimer can talk in claimed tickets, updated `/tagmm` responses to show publicly instead of privately, and added `/activity` command for middlemen to post activity reports with trade details and screenshots
 - June 27, 2025: Enhanced mobile experience with copy-friendly embed formats, added role ping notifications when tickets are created, and fixed role-based command restrictions using proper Discord.js role checking
 - June 27, 2025: Implemented role-based restrictions for administrative commands - only users with role ID `1365778314572333188` can use `/setup`, `/tagmm`, `/add`, `/finish`, and `!deletec` commands
 - June 26, 2025: Added `/fee` and `/tagmm` commands with Tradeblox theme (yellow/orange colors) and interactive buttons

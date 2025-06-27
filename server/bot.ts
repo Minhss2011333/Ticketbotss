@@ -110,7 +110,19 @@ export class TradebloxBot {
       
       new SlashCommandBuilder()
         .setName('tagmm')
-        .setDescription('Explain what a middleman is')
+        .setDescription('Explain what a middleman is'),
+      
+      new SlashCommandBuilder()
+        .setName('unclaim')
+        .setDescription('Unclaim a ticket (Middleman only)')
+        .addStringOption(option =>
+          option.setName('number')
+            .setDescription('Ticket number to unclaim')
+            .setRequired(true)),
+      
+      new SlashCommandBuilder()
+        .setName('activity')
+        .setDescription('Post middleman activity (Middleman only)')
     ];
 
     this.client.once(Events.ClientReady, async () => {
@@ -171,6 +183,12 @@ export class TradebloxBot {
             return;
           }
           await this.handleTagMMCommand(interaction);
+          break;
+        case 'unclaim':
+          await this.handleUnclaimCommand(interaction);
+          break;
+        case 'activity':
+          await this.handleActivityCommand(interaction);
           break;
         default:
           await interaction.reply({ content: 'Unknown command!', flags: 64 });
@@ -503,6 +521,90 @@ export class TradebloxBot {
     });
   }
 
+  private async handleUnclaimCommand(interaction: any) {
+    const ticketNumber = interaction.options.getString('number');
+    const ticket = await storage.getTicketByNumber(ticketNumber);
+
+    if (!ticket) {
+      await interaction.reply({ content: `Ticket ${ticketNumber} not found.`, flags: 64 });
+      return;
+    }
+
+    if (ticket.status !== 'claimed') {
+      await interaction.reply({ content: `Ticket ${ticketNumber} is not currently claimed.`, flags: 64 });
+      return;
+    }
+
+    // Check if the user is the one who claimed the ticket
+    if (ticket.claimedBy !== interaction.user.id) {
+      await interaction.reply({ content: 'You can only unclaim tickets that you have claimed.', flags: 64 });
+      return;
+    }
+
+    const updatedTicket = await storage.updateTicket(ticket.id, {
+      status: 'pending',
+      claimedBy: undefined,
+      claimedByName: undefined
+    });
+
+    if (updatedTicket) {
+      const embed = this.createTicketEmbed(updatedTicket);
+      await interaction.reply({ 
+        content: `✅ You have unclaimed ticket ${ticketNumber}! It's now available for other middlemen.`, 
+        embeds: [embed] 
+      });
+    } else {
+      await interaction.reply({ content: 'Failed to unclaim ticket.', flags: 64 });
+    }
+  }
+
+  private async handleActivityCommand(interaction: any) {
+    // Check if user has the middleman role
+    const member = interaction.member;
+    if (!member || !member.roles.cache.has('1365778314572333188')) {
+      await interaction.reply({ 
+        content: 'You need the middleman role to post activity.', 
+        flags: 64 
+      });
+      return;
+    }
+
+    const modal = new ModalBuilder()
+      .setCustomId('activity_modal')
+      .setTitle('Middleman Activity Report');
+
+    const tradeDetailsInput = new TextInputBuilder()
+      .setCustomId('trade_details')
+      .setLabel('Trade Details')
+      .setStyle(TextInputStyle.Paragraph)
+      .setPlaceholder('Describe the trade details...')
+      .setRequired(true)
+      .setMaxLength(1000);
+
+    const personInput = new TextInputBuilder()
+      .setCustomId('person')
+      .setLabel('With what person')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Username or Discord mention')
+      .setRequired(true)
+      .setMaxLength(100);
+
+    const screenshotInput = new TextInputBuilder()
+      .setCustomId('screenshot')
+      .setLabel('Screenshot/Picture URL')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Paste image URL here (optional)')
+      .setRequired(false)
+      .setMaxLength(500);
+
+    const row1 = new ActionRowBuilder<TextInputBuilder>().addComponents(tradeDetailsInput);
+    const row2 = new ActionRowBuilder<TextInputBuilder>().addComponents(personInput);
+    const row3 = new ActionRowBuilder<TextInputBuilder>().addComponents(screenshotInput);
+
+    modal.addComponents(row1, row2, row3);
+    await interaction.showModal(modal);
+  }
+
   private async handleTagMMCommand(interaction: any) {
     const mmEmbed = new EmbedBuilder()
       .setTitle('What is Middleman?')
@@ -606,8 +708,7 @@ export class TradebloxBot {
           `**Other Party:** <@${user.id}>\n\n` +
           `**Deal:** ${ticket.deal}\n\n` +
           `Please both click **Confirm** to proceed with middleman service, or **Decline** to cancel the trade.`)
-        .setColor(0xFFD700)
-        .setFooter({ text: 'Both parties must confirm within 5 minutes' });
+        .setColor(0xFFD700);
 
       const confirmButton = new ButtonBuilder()
         .setCustomId(`confirm_trade_${ticket.id}`)
@@ -626,30 +727,6 @@ export class TradebloxBot {
         embeds: [confirmationEmbed],
         components: [row]
       });
-
-      // Set a timeout to auto-decline after 5 minutes
-      setTimeout(async () => {
-        try {
-          const channel = interaction.channel;
-          if (channel && 'send' in channel) {
-            await channel.send({
-              content: '⏰ Trade confirmation timed out. Ticket will be deleted in 10 seconds.',
-            });
-            
-            setTimeout(async () => {
-              try {
-                if (channel && 'delete' in channel) {
-                  await channel.delete();
-                }
-              } catch (error) {
-                console.error('Error deleting timed out ticket:', error);
-              }
-            }, 10000);
-          }
-        } catch (error) {
-          console.error('Error handling timeout:', error);
-        }
-      }, 300000); // 5 minutes
 
     } else {
       await interaction.reply({ 
@@ -732,6 +809,76 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
       });
 
       if (updatedTicket) {
+        // Update channel permissions to restrict messaging to only the claimer
+        const channel = interaction.channel;
+        if (channel && 'permissionOverwrites' in channel) {
+          try {
+            // Remove send message permissions from the middleman role
+            await channel.permissionOverwrites.edit('1365778314572333188', {
+              SendMessages: false
+            });
+            
+            // Give send message permissions only to the claimer
+            await channel.permissionOverwrites.create(interaction.user.id, {
+              ViewChannel: true,
+              SendMessages: true,
+              ReadMessageHistory: true,
+              ManageMessages: true
+            });
+          } catch (error) {
+            console.error('Error updating channel permissions:', error);
+          }
+        }
+
+        const embed = this.createTicketEmbed(updatedTicket);
+        await interaction.update({ embeds: [embed], components: [this.createTicketActionRow(updatedTicket)] });
+      }
+    } else if (interaction.customId.startsWith('unclaim_')) {
+      const ticketId = parseInt(interaction.customId.replace('unclaim_', ''));
+      const ticket = await storage.getTicket(ticketId);
+
+      if (!ticket) {
+        await interaction.reply({ content: 'Ticket not found.', flags: 64 });
+        return;
+      }
+
+      if (ticket.status !== 'claimed') {
+        await interaction.reply({ content: 'This ticket is not currently claimed.', flags: 64 });
+        return;
+      }
+
+      // Check if the user is the one who claimed the ticket
+      if (ticket.claimedBy !== interaction.user.id) {
+        await interaction.reply({ content: 'You can only unclaim tickets that you have claimed.', flags: 64 });
+        return;
+      }
+
+      const updatedTicket = await storage.updateTicket(ticketId, {
+        status: 'pending',
+        claimedBy: undefined,
+        claimedByName: undefined
+      });
+
+      if (updatedTicket) {
+        // Restore channel permissions to allow all middlemen to talk
+        const channel = interaction.channel;
+        if (channel && 'permissionOverwrites' in channel) {
+          try {
+            // Remove individual permissions for the previous claimer
+            await channel.permissionOverwrites.delete(interaction.user.id);
+            
+            // Restore send message permissions for the middleman role
+            await channel.permissionOverwrites.edit('1365778314572333188', {
+              ViewChannel: true,
+              SendMessages: true,
+              ReadMessageHistory: true,
+              ManageMessages: true
+            });
+          } catch (error) {
+            console.error('Error updating channel permissions:', error);
+          }
+        }
+
         const embed = this.createTicketEmbed(updatedTicket);
         await interaction.update({ embeds: [embed], components: [this.createTicketActionRow(updatedTicket)] });
       }
@@ -826,13 +973,13 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
       });
     } else if (interaction.customId === 'understand_yes') {
       await interaction.reply({
-        content: 'Great! You understand how middleman services work. Feel free to create a ticket when you need assistance.',
-        flags: 64
+        content: `${interaction.user.displayName || interaction.user.username} understands how middleman services work! 👍`,
+        ephemeral: false
       });
     } else if (interaction.customId === 'understand_no') {
       await interaction.reply({
-        content: 'No problem! Feel free to ask any questions in the server or read the explanation again. Our staff is here to help!',
-        flags: 64
+        content: `${interaction.user.displayName || interaction.user.username} doesn't understand yet. Please feel free to ask questions in the channel!`,
+        ephemeral: false
       });
     }
   }
@@ -918,6 +1065,39 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
           }
         }, 10000);
       }
+    } else if (interaction.customId === 'activity_modal') {
+      const tradeDetails = interaction.fields.getTextInputValue('trade_details');
+      const person = interaction.fields.getTextInputValue('person');
+      const screenshot = interaction.fields.getTextInputValue('screenshot');
+
+      const activityEmbed = new EmbedBuilder()
+        .setTitle('📊 Middleman Activity Report')
+        .setDescription(`**Trade Details:**\n${tradeDetails}\n\n**Trading Partner:**\n${person}`)
+        .setColor(0xFFA500)
+        .addFields(
+          { name: 'Middleman', value: `<@${interaction.user.id}>`, inline: true },
+          { name: 'Posted At', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true }
+        )
+        .setFooter({ text: 'Middleman Activity Log' });
+
+      if (screenshot && screenshot.trim()) {
+        try {
+          // Validate URL format
+          new URL(screenshot);
+          activityEmbed.setImage(screenshot);
+        } catch (error) {
+          // If invalid URL, add it as a field instead
+          activityEmbed.addFields(
+            { name: 'Screenshot/Evidence', value: screenshot, inline: false }
+          );
+        }
+      }
+
+      await interaction.reply({
+        content: `📊 **New Middleman Activity Report**`,
+        embeds: [activityEmbed],
+        ephemeral: false
+      });
     } else if (interaction.customId.startsWith('ticket_modal_')) {
       // Extract deal value from the custom ID
       const dealValue = interaction.customId.replace('ticket_modal_', '');
@@ -1130,6 +1310,16 @@ ${ticket.claimedBy ? `Claimed By: ${ticket.claimedByName || 'Unknown'}` : ''}`;
           .setLabel('Claim')
           .setEmoji('🛡️')
           .setStyle(ButtonStyle.Success)
+      );
+    }
+
+    if (ticket.status === 'claimed') {
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`unclaim_${ticket.id}`)
+          .setLabel('Unclaim')
+          .setEmoji('🔓')
+          .setStyle(ButtonStyle.Secondary)
       );
     }
 
