@@ -144,6 +144,9 @@ export class TradebloxBot {
             .setDescription('Upload a screenshot of the trade')
             .setRequired(false)),
       
+      new SlashCommandBuilder()
+        .setName('tcmds')
+        .setDescription('Display list of all Tradeblox commands')
 
     ];
 
@@ -213,7 +216,9 @@ export class TradebloxBot {
         case 'activity':
           await this.handleActivityCommand(interaction);
           break;
-
+        case 'tcmds':
+          await this.handleTcmdsCommand(interaction);
+          break;
         default:
           await interaction.reply({ content: 'Unknown command!', flags: 64 });
       }
@@ -629,6 +634,42 @@ export class TradebloxBot {
     await interaction.reply({
       content: `📊 **New Middleman Activity Report**`,
       embeds: [activityEmbed],
+      ephemeral: false
+    });
+  }
+
+  private async handleTcmdsCommand(interaction: any) {
+    const commandsEmbed = new EmbedBuilder()
+      .setTitle('📋 Tradeblox Commands')
+      .setDescription('Here are all the available Tradeblox middleman commands:')
+      .setColor(0xFFA500)
+      .addFields(
+        {
+          name: '🎫 **Ticket Commands**',
+          value: '`/tickets` - View all tickets in the system\n`/ticket <number>` - View specific ticket details\n`/claim <number>` - Claim a ticket as middleman\n`/unclaim <number>` - Release a claimed ticket\n`/close <number>` - Close a completed ticket',
+          inline: false
+        },
+        {
+          name: '🛠️ **Admin Commands**',
+          value: '`/add <user>` - Add another party to ticket\n`/finish <number>` - Mark ticket as completed\n`!deletec` - Instantly delete current channel',
+          inline: false
+        },
+        {
+          name: '📊 **Activity & Info**',
+          value: '`/activity` - Post middleman activity report\n`/fee` - Display middleman fee options\n`/tagmm` - Explain what a middleman is',
+          inline: false
+        },
+        {
+          name: '🍎 **Special Commands**',
+          value: '`!apple` - Join development team with confirmation',
+          inline: false
+        }
+      )
+      .setFooter({ text: 'Tradeblox Middleman System' })
+      .setTimestamp();
+
+    await interaction.reply({
+      embeds: [commandsEmbed],
       ephemeral: false
     });
   }
