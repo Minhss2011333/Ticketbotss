@@ -123,6 +123,18 @@ export class TradebloxBot {
       new SlashCommandBuilder()
         .setName('activity')
         .setDescription('Post middleman activity (Middleman only)')
+        .addUserOption(option =>
+          option.setName('trader')
+            .setDescription('Select the person you traded with')
+            .setRequired(true))
+        .addStringOption(option =>
+          option.setName('details')
+            .setDescription('Enter trade details')
+            .setRequired(true))
+        .addAttachmentOption(option =>
+          option.setName('screenshot')
+            .setDescription('Upload a screenshot of the trade')
+            .setRequired(false))
     ];
 
     this.client.once(Events.ClientReady, async () => {
@@ -569,40 +581,36 @@ export class TradebloxBot {
       return;
     }
 
-    const modal = new ModalBuilder()
-      .setCustomId('activity_modal')
-      .setTitle('Middleman Activity Report');
+    const trader = interaction.options.getUser('trader');
+    const details = interaction.options.getString('details');
+    const screenshot = interaction.options.getAttachment('screenshot');
 
-    const tradeDetailsInput = new TextInputBuilder()
-      .setCustomId('trade_details')
-      .setLabel('Trade Details')
-      .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('Describe the trade details...')
-      .setRequired(true)
-      .setMaxLength(1000);
+    const activityEmbed = new EmbedBuilder()
+      .setTitle('MM Activity')
+      .setDescription(`**Details:** ${details}\n\n**With:** <@${trader.id}>\n\n**By:** <@${interaction.user.id}>`)
+      .setColor(0xFFA500)
+      .setTimestamp()
+      .setFooter({ text: 'Middleman Activity' });
 
-    const personInput = new TextInputBuilder()
-      .setCustomId('person')
-      .setLabel('With what person')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Username or Discord mention')
-      .setRequired(true)
-      .setMaxLength(100);
+    if (screenshot) {
+      // Check if the attachment is an image
+      if (screenshot.contentType && screenshot.contentType.startsWith('image/')) {
+        activityEmbed.setImage(screenshot.url);
+      } else {
+        // If not an image, add as a field
+        activityEmbed.addFields({
+          name: 'Attachment',
+          value: `[${screenshot.name}](${screenshot.url})`,
+          inline: false
+        });
+      }
+    }
 
-    const screenshotInput = new TextInputBuilder()
-      .setCustomId('screenshot')
-      .setLabel('Screenshot/Picture URL')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Paste image URL here (optional)')
-      .setRequired(false)
-      .setMaxLength(500);
-
-    const row1 = new ActionRowBuilder<TextInputBuilder>().addComponents(tradeDetailsInput);
-    const row2 = new ActionRowBuilder<TextInputBuilder>().addComponents(personInput);
-    const row3 = new ActionRowBuilder<TextInputBuilder>().addComponents(screenshotInput);
-
-    modal.addComponents(row1, row2, row3);
-    await interaction.showModal(modal);
+    await interaction.reply({
+      content: `📊 **New Middleman Activity Report**`,
+      embeds: [activityEmbed],
+      ephemeral: false
+    });
   }
 
   private async handleTagMMCommand(interaction: any) {
@@ -1065,34 +1073,6 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
           }
         }, 10000);
       }
-    } else if (interaction.customId === 'activity_modal') {
-      const tradeDetails = interaction.fields.getTextInputValue('trade_details');
-      const person = interaction.fields.getTextInputValue('person');
-      const screenshot = interaction.fields.getTextInputValue('screenshot');
-
-      const activityEmbed = new EmbedBuilder()
-        .setTitle('MM Activity')
-        .setDescription(`**Details:** ${tradeDetails}\n\n**With:** ${person}\n\n**By:** <@${interaction.user.id}>`)
-        .setColor(0xFFA500)
-        .setTimestamp()
-        .setFooter({ text: 'Middleman Activity' });
-
-      if (screenshot && screenshot.trim()) {
-        try {
-          // Validate URL format
-          new URL(screenshot);
-          activityEmbed.setImage(screenshot);
-        } catch (error) {
-          // If invalid URL, treat as text
-          activityEmbed.setDescription(`**Details:** ${tradeDetails}\n\n**With:** ${person}\n\n**Screenshot/Evidence:** ${screenshot}\n\n**By:** <@${interaction.user.id}>`);
-        }
-      }
-
-      await interaction.reply({
-        content: `📊 **New Middleman Activity Report**`,
-        embeds: [activityEmbed],
-        ephemeral: false
-      });
     } else if (interaction.customId.startsWith('ticket_modal_')) {
       // Extract deal value from the custom ID
       const dealValue = interaction.customId.replace('ticket_modal_', '');

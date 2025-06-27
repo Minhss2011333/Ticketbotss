@@ -113,7 +113,7 @@ To use the Discord bot functionality:
 - `/finish <number>` - Mark ticket as completed (admin only)
 - `/fee` - Display middleman fee options with interactive buttons
 - `/tagmm` - Explain what a middleman is (admin only)
-- `/activity` - Post middleman activity report (middleman only)
+- `/activity` - Post middleman activity report with Discord user selection and file upload (middleman only)
 - `!deletec` - Instantly delete current channel (admin only)
 
 ## Changelog
