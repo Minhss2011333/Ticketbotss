@@ -103,18 +103,19 @@ To use the Discord bot functionality:
 5. **Start Bot**: The bot automatically starts when the server runs
 
 ### Available Commands
-- `/setup` - Creates ticket request embed (admin use)
+- `/setup` - Creates ticket request embed (admin only)
 - `/tickets` - Lists all tickets in the system
 - `/ticket <number>` - Shows specific ticket details
 - `/claim <number>` - Claim a ticket as middleman
 - `/close <number>` - Close a completed ticket
-- `/add <user>` - Add another party to ticket (middleman role required)
-- `/finish <number>` - Mark ticket as completed (middleman role required)
+- `/add <user>` - Add another party to ticket (admin only)
+- `/finish <number>` - Mark ticket as completed (admin only)
 - `/fee` - Display middleman fee options with interactive buttons
-- `/tagmm` - Explain what a middleman is with examples
-- `!deletec` - Instantly delete current channel (middleman role required)
+- `/tagmm` - Explain what a middleman is (admin only)
+- `!deletec` - Instantly delete current channel (admin only)
 
 ## Changelog
+- June 27, 2025: Implemented role-based restrictions for administrative commands - only users with role ID `1365778314572333188` can use `/setup`, `/tagmm`, `/add`, `/finish`, and `!deletec` commands
 - June 26, 2025: Added `/fee` and `/tagmm` commands with Tradeblox theme (yellow/orange colors) and interactive buttons
 - June 26, 2025: Restricted `/add` command to middleman role only, added `!deletec` instant channel deletion command
 - June 26, 2025: Added automatic category overflow management to handle Discord's 50-channel limit per category

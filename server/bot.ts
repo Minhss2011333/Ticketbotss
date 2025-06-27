@@ -6,6 +6,7 @@ import { z } from 'zod';
 export class TradebloxBot {
   public client: Client;
   private token: string;
+  private readonly ADMIN_ROLE_ID = '1365778314572333188';
 
   constructor(token: string) {
     this.token = token;
@@ -19,6 +20,11 @@ export class TradebloxBot {
 
     this.setupEventHandlers();
     this.setupCommands();
+  }
+
+  private hasAdminRole(interaction: any): boolean {
+    if (!interaction.member || !interaction.member.roles) return false;
+    return interaction.member.roles.cache.has(this.ADMIN_ROLE_ID);
   }
 
   private setupEventHandlers() {
@@ -135,18 +141,34 @@ export class TradebloxBot {
           await this.handleCloseCommand(interaction);
           break;
         case 'setup':
+          if (!this.hasAdminRole(interaction)) {
+            await interaction.reply({ content: 'You do not have permission to use this command.', flags: 64 });
+            return;
+          }
           await this.handleSetupCommand(interaction);
           break;
         case 'add':
+          if (!this.hasAdminRole(interaction)) {
+            await interaction.reply({ content: 'You do not have permission to use this command.', flags: 64 });
+            return;
+          }
           await this.handleAddCommand(interaction);
           break;
         case 'finish':
+          if (!this.hasAdminRole(interaction)) {
+            await interaction.reply({ content: 'You do not have permission to use this command.', flags: 64 });
+            return;
+          }
           await this.handleFinishCommand(interaction);
           break;
         case 'fee':
           await this.handleFeeCommand(interaction);
           break;
         case 'tagmm':
+          if (!this.hasAdminRole(interaction)) {
+            await interaction.reply({ content: 'You do not have permission to use this command.', flags: 64 });
+            return;
+          }
           await this.handleTagMMCommand(interaction);
           break;
         default:
@@ -256,10 +278,10 @@ export class TradebloxBot {
   private confirmations = new Map<number, Set<string>>(); // ticketId -> set of user IDs who confirmed
 
   private async handleDeleteChannelCommand(message: any) {
-    // Check if user has the required middleman role
+    // Check if user has the required admin role
     const member = message.member;
-    if (!member || !member.roles.cache.has('1365778314572333188')) {
-      await message.reply('You need the middleman role to delete channels.');
+    if (!member || !member.roles.cache.has(this.ADMIN_ROLE_ID)) {
+      await message.reply('You do not have permission to delete channels.');
       return;
     }
 
