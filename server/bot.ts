@@ -1003,144 +1003,159 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
   }
 
   private async handleButtonInteraction(interaction: any) {
-    if (interaction.customId.startsWith('claim_')) {
-      const ticketId = parseInt(interaction.customId.replace('claim_', ''));
-      const ticket = await storage.getTicket(ticketId);
+    try {
+      if (interaction.customId.startsWith('claim_')) {
+        const ticketId = parseInt(interaction.customId.replace('claim_', ''));
+        const ticket = await storage.getTicket(ticketId);
 
-      if (!ticket) {
-        await interaction.reply({ content: 'Ticket not found.', flags: 64 });
-        return;
-      }
-
-      if (ticket.status !== 'pending') {
-        await interaction.reply({ content: 'This ticket is not available for claiming.', flags: 64 });
-        return;
-      }
-
-      const updatedTicket = await storage.updateTicket(ticketId, {
-        status: 'claimed',
-        claimedBy: interaction.user.id,
-        claimedByName: interaction.user.displayName || interaction.user.username
-      });
-
-      if (updatedTicket) {
-        // Update channel permissions to restrict messaging to only the claimer
-        const channel = interaction.channel;
-        if (channel && 'permissionOverwrites' in channel) {
-          try {
-            // Remove send message permissions from the middleman role
-            await channel.permissionOverwrites.edit('1365778314572333188', {
-              SendMessages: false
-            });
-            
-            // Give send message permissions only to the claimer
-            await channel.permissionOverwrites.create(interaction.user.id, {
-              ViewChannel: true,
-              SendMessages: true,
-              ReadMessageHistory: true,
-              ManageMessages: true
-            });
-          } catch (error) {
-            console.error('Error updating channel permissions:', error);
-          }
+        if (!ticket) {
+          await interaction.reply({ content: 'Ticket not found.', flags: 64 });
+          return;
         }
 
-        const embed = this.createTicketEmbed(updatedTicket);
-        await interaction.update({ embeds: [embed], components: [this.createTicketActionRow(updatedTicket)] });
-      }
-    } else if (interaction.customId.startsWith('unclaim_')) {
-      const ticketId = parseInt(interaction.customId.replace('unclaim_', ''));
-      const ticket = await storage.getTicket(ticketId);
-
-      if (!ticket) {
-        await interaction.reply({ content: 'Ticket not found.', flags: 64 });
-        return;
-      }
-
-      if (ticket.status !== 'claimed') {
-        await interaction.reply({ content: 'This ticket is not currently claimed.', flags: 64 });
-        return;
-      }
-
-      // Check if the user is the one who claimed the ticket
-      if (ticket.claimedBy !== interaction.user.id) {
-        await interaction.reply({ content: 'You can only unclaim tickets that you have claimed.', flags: 64 });
-        return;
-      }
-
-      const updatedTicket = await storage.updateTicket(ticketId, {
-        status: 'pending',
-        claimedBy: undefined,
-        claimedByName: undefined
-      });
-
-      if (updatedTicket) {
-        // Restore channel permissions to allow all middlemen to talk
-        const channel = interaction.channel;
-        if (channel && 'permissionOverwrites' in channel) {
-          try {
-            // Remove individual permissions for the previous claimer
-            await channel.permissionOverwrites.delete(interaction.user.id);
-            
-            // Restore send message permissions for the middleman role
-            await channel.permissionOverwrites.edit('1365778314572333188', {
-              ViewChannel: true,
-              SendMessages: true,
-              ReadMessageHistory: true,
-              ManageMessages: true
-            });
-          } catch (error) {
-            console.error('Error updating channel permissions:', error);
-          }
+        if (ticket.status !== 'pending') {
+          await interaction.reply({ content: 'This ticket is not available for claiming.', flags: 64 });
+          return;
         }
 
-        const embed = this.createTicketEmbed(updatedTicket);
-        await interaction.update({ embeds: [embed], components: [this.createTicketActionRow(updatedTicket)] });
-      }
-    } else if (interaction.customId.startsWith('confirm_trade_')) {
-      await this.handleTradeConfirmation(interaction, 'confirm');
-    } else if (interaction.customId.startsWith('decline_trade_')) {
-      await this.handleTradeConfirmation(interaction, 'decline');
-    } else if (interaction.customId.startsWith('close_reason_')) {
-      const ticketId = parseInt(interaction.customId.replace('close_reason_', ''));
-      const ticket = await storage.getTicket(ticketId);
+        const updatedTicket = await storage.updateTicket(ticketId, {
+          status: 'claimed',
+          claimedBy: interaction.user.id,
+          claimedByName: interaction.user.displayName || interaction.user.username
+        });
 
-      if (!ticket) {
-        await interaction.reply({ content: 'Ticket not found.', flags: 64 });
-        return;
-      }
+        if (updatedTicket) {
+          // Update channel permissions to restrict messaging to only the claimer
+          const channel = interaction.channel;
+          if (channel && 'permissionOverwrites' in channel) {
+            try {
+              // Remove send message permissions from the middleman role
+              await channel.permissionOverwrites.edit('1365778314572333188', {
+                SendMessages: false
+              });
+              
+              // Give send message permissions only to the claimer
+              await channel.permissionOverwrites.create(interaction.user.id, {
+                ViewChannel: true,
+                SendMessages: true,
+                ReadMessageHistory: true,
+                ManageMessages: true
+              });
+            } catch (error) {
+              console.error('Error updating channel permissions:', error);
+            }
+          }
 
-      const modal = new ModalBuilder()
-        .setCustomId(`close_reason_modal_${ticketId}`)
-        .setTitle('Close Ticket with Reason');
+          try {
+            const embed = this.createTicketEmbed(updatedTicket);
+            await interaction.update({ embeds: [embed], components: [this.createTicketActionRow(updatedTicket)] });
+          } catch (error) {
+            console.error('Error updating interaction:', error);
+            await interaction.followUp({ content: `✅ Ticket successfully claimed by ${interaction.user.displayName || interaction.user.username}!`, flags: 64 });
+          }
+        } else {
+          await interaction.reply({ content: 'Failed to claim ticket. Please try again.', flags: 64 });
+        }
+      } else if (interaction.customId.startsWith('unclaim_')) {
+        const ticketId = parseInt(interaction.customId.replace('unclaim_', ''));
+        const ticket = await storage.getTicket(ticketId);
 
-      const reasonInput = new TextInputBuilder()
-        .setCustomId('close_reason')
-        .setLabel('Reason for closing')
-        .setStyle(TextInputStyle.Paragraph)
-        .setPlaceholder('Enter reason for closing this ticket...')
-        .setRequired(true)
-        .setMaxLength(500);
+        if (!ticket) {
+          await interaction.reply({ content: 'Ticket not found.', flags: 64 });
+          return;
+        }
 
-      const actionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(reasonInput);
-      modal.addComponents(actionRow);
+        if (ticket.status !== 'claimed') {
+          await interaction.reply({ content: 'This ticket is not currently claimed.', flags: 64 });
+          return;
+        }
 
-      await interaction.showModal(modal);
-    } else if (interaction.customId.startsWith('close_')) {
-      const ticketId = parseInt(interaction.customId.replace('close_', ''));
-      const ticket = await storage.getTicket(ticketId);
+        // Check if the user is the one who claimed the ticket
+        if (ticket.claimedBy !== interaction.user.id) {
+          await interaction.reply({ content: 'You can only unclaim tickets that you have claimed.', flags: 64 });
+          return;
+        }
 
-      if (!ticket) {
-        await interaction.reply({ content: 'Ticket not found.', flags: 64 });
-        return;
-      }
+        const updatedTicket = await storage.updateTicket(ticketId, {
+          status: 'pending',
+          claimedBy: undefined,
+          claimedByName: undefined
+        });
 
-      const updatedTicket = await storage.updateTicket(ticketId, {
-        status: 'closed'
-      });
+        if (updatedTicket) {
+          // Restore channel permissions to allow all middlemen to talk
+          const channel = interaction.channel;
+          if (channel && 'permissionOverwrites' in channel) {
+            try {
+              // Remove individual permissions for the previous claimer
+              await channel.permissionOverwrites.delete(interaction.user.id);
+              
+              // Restore send message permissions for the middleman role
+              await channel.permissionOverwrites.edit('1365778314572333188', {
+                ViewChannel: true,
+                SendMessages: true,
+                ReadMessageHistory: true,
+                ManageMessages: true
+              });
+            } catch (error) {
+              console.error('Error updating channel permissions:', error);
+            }
+          }
 
-      if (updatedTicket) {
-        await interaction.reply({
+          try {
+            const embed = this.createTicketEmbed(updatedTicket);
+            await interaction.update({ embeds: [embed], components: [this.createTicketActionRow(updatedTicket)] });
+          } catch (error) {
+            console.error('Error updating unclaim interaction:', error);
+            await interaction.followUp({ content: `✅ Ticket successfully unclaimed by ${interaction.user.displayName || interaction.user.username}!`, flags: 64 });
+          }
+        } else {
+          await interaction.reply({ content: 'Failed to unclaim ticket. Please try again.', flags: 64 });
+        }
+      } else if (interaction.customId.startsWith('confirm_trade_')) {
+        await this.handleTradeConfirmation(interaction, 'confirm');
+      } else if (interaction.customId.startsWith('decline_trade_')) {
+        await this.handleTradeConfirmation(interaction, 'decline');
+      } else if (interaction.customId.startsWith('close_reason_')) {
+        const ticketId = parseInt(interaction.customId.replace('close_reason_', ''));
+        const ticket = await storage.getTicket(ticketId);
+
+        if (!ticket) {
+          await interaction.reply({ content: 'Ticket not found.', flags: 64 });
+          return;
+        }
+
+        const modal = new ModalBuilder()
+          .setCustomId(`close_reason_modal_${ticketId}`)
+          .setTitle('Close Ticket with Reason');
+
+        const reasonInput = new TextInputBuilder()
+          .setCustomId('close_reason')
+          .setLabel('Reason for closing')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Enter reason for closing this ticket...')
+          .setRequired(true)
+          .setMaxLength(500);
+
+        const actionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(reasonInput);
+        modal.addComponents(actionRow);
+
+        await interaction.showModal(modal);
+      } else if (interaction.customId.startsWith('close_')) {
+        const ticketId = parseInt(interaction.customId.replace('close_', ''));
+        const ticket = await storage.getTicket(ticketId);
+
+        if (!ticket) {
+          await interaction.reply({ content: 'Ticket not found.', flags: 64 });
+          return;
+        }
+
+        const updatedTicket = await storage.updateTicket(ticketId, {
+          status: 'closed'
+        });
+
+        if (updatedTicket) {
+          await interaction.reply({
           content: `🔒 Ticket ${updatedTicket.ticketNumber} has been closed. This channel will be deleted in 10 seconds.`,
           ephemeral: false
         });
@@ -1196,10 +1211,28 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
         content: `${interaction.user.displayName || interaction.user.username} doesn't understand yet. Please feel free to ask questions in the channel!`,
         ephemeral: false
       });
-    } else if (interaction.customId.startsWith('apple_yes_')) {
-      await this.handleAppleYesButton(interaction);
-    } else if (interaction.customId.startsWith('apple_no_')) {
-      await this.handleAppleNoButton(interaction);
+      } else if (interaction.customId.startsWith('apple_yes_')) {
+        await this.handleAppleYesButton(interaction);
+      } else if (interaction.customId.startsWith('apple_no_')) {
+        await this.handleAppleNoButton(interaction);
+      }
+    } catch (error) {
+      console.error('Error handling button interaction:', error);
+      try {
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction.reply({ 
+            content: 'An error occurred while processing your request. Please try again.', 
+            flags: 64 
+          });
+        } else {
+          await interaction.followUp({ 
+            content: 'An error occurred while processing your request. Please try again.', 
+            flags: 64 
+          });
+        }
+      } catch (followUpError) {
+        console.error('Error sending error message:', followUpError);
+      }
     }
   }
 
