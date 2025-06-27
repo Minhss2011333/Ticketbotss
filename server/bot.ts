@@ -639,33 +639,135 @@ export class TradebloxBot {
 
     if (!member) {
       await interaction.reply({ 
+        content: 'Unable to process request - member not found.', 
+        ephemeral: false 
+      });
+      return;
+    }
+
+    // Check if user already has the role
+    if (member.roles.cache.has(roleId)) {
+      await interaction.reply({ 
+        content: `${interaction.user.username} already has the Apple role!`, 
+        ephemeral: false 
+      });
+      return;
+    }
+
+    // Create confirmation embed and buttons
+    const confirmEmbed = new EmbedBuilder()
+      .setTitle(`# Hello ${interaction.user.username}`)
+      .setDescription('Are you willing to join our development team?')
+      .setColor(0x00FF00)
+      .setTimestamp();
+
+    const confirmButtons = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`apple_yes_${interaction.user.id}`)
+          .setLabel('Yes')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId(`apple_no_${interaction.user.id}`)
+          .setLabel('No')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+    await interaction.reply({
+      embeds: [confirmEmbed],
+      components: [confirmButtons],
+      ephemeral: false
+    });
+  }
+
+  private async handleAppleYesButton(interaction: any) {
+    const roleId = '1365778320951738599';
+    const userId = interaction.customId.replace('apple_yes_', '');
+    
+    // Check if the user clicking is the same as the one who initiated the command
+    if (interaction.user.id !== userId) {
+      await interaction.reply({ 
+        content: 'Only the person who used the command can respond to this confirmation.', 
+        ephemeral: true 
+      });
+      return;
+    }
+
+    const member = interaction.member;
+    if (!member) {
+      await interaction.reply({ 
         content: 'Unable to assign role - member not found.', 
-        flags: 64 
+        ephemeral: false 
       });
       return;
     }
 
     try {
-      // Check if user already has the role
-      if (member.roles.cache.has(roleId)) {
-        await interaction.reply({ 
-          content: 'You already have the Apple role!', 
-          flags: 64 
-        });
-        return;
-      }
-
       // Add the role
       await member.roles.add(roleId);
-      await interaction.reply({ 
-        content: '🍎 Apple role has been assigned to you!', 
-        flags: 64 
+      
+      const successEmbed = new EmbedBuilder()
+        .setTitle('🍎 Welcome to the Development Team!')
+        .setDescription(`${interaction.user.username} has successfully joined our development team!`)
+        .setColor(0x00FF00)
+        .setTimestamp();
+
+      await interaction.update({
+        embeds: [successEmbed],
+        components: []
       });
     } catch (error) {
       console.error('Error assigning Apple role:', error);
+      await interaction.update({
+        content: `Failed to assign the Apple role to ${interaction.user.username}. Please contact an administrator.`,
+        embeds: [],
+        components: []
+      });
+    }
+  }
+
+  private async handleAppleNoButton(interaction: any) {
+    const userId = interaction.customId.replace('apple_no_', '');
+    
+    // Check if the user clicking is the same as the one who initiated the command
+    if (interaction.user.id !== userId) {
       await interaction.reply({ 
-        content: 'Failed to assign the Apple role. Please contact an administrator.', 
-        flags: 64 
+        content: 'Only the person who used the command can respond to this confirmation.', 
+        ephemeral: true 
+      });
+      return;
+    }
+
+    const member = interaction.member;
+    if (!member) {
+      await interaction.reply({ 
+        content: 'Unable to process timeout - member not found.', 
+        ephemeral: false 
+      });
+      return;
+    }
+
+    try {
+      // Timeout for 2 hours (2 * 60 * 60 * 1000 milliseconds)
+      const timeoutDuration = 2 * 60 * 60 * 1000;
+      await member.timeout(timeoutDuration, 'Declined to join development team');
+      
+      const timeoutEmbed = new EmbedBuilder()
+        .setTitle('❌ Development Team Invitation Declined')
+        .setDescription(`${interaction.user.username} has declined to join the development team and has been given a 2-hour timeout.`)
+        .setColor(0xFF0000)
+        .setTimestamp();
+
+      await interaction.update({
+        embeds: [timeoutEmbed],
+        components: []
+      });
+    } catch (error) {
+      console.error('Error applying timeout:', error);
+      await interaction.update({
+        content: `${interaction.user.username} declined the invitation, but timeout could not be applied. Please contact an administrator.`,
+        embeds: [],
+        components: []
       });
     }
   }
@@ -1046,6 +1148,10 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
         content: `${interaction.user.displayName || interaction.user.username} doesn't understand yet. Please feel free to ask questions in the channel!`,
         ephemeral: false
       });
+    } else if (interaction.customId.startsWith('apple_yes_')) {
+      await this.handleAppleYesButton(interaction);
+    } else if (interaction.customId.startsWith('apple_no_')) {
+      await this.handleAppleNoButton(interaction);
     }
   }
 
