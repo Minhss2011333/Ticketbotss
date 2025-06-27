@@ -1,4 +1,6 @@
 import { users, tickets, type User, type InsertUser, type Ticket, type InsertTicket, type UpdateTicket } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -103,4 +105,72 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  async getAllTickets(): Promise<Ticket[]> {
+    return await db.select().from(tickets).orderBy(desc(tickets.id));
+  }
+
+  async getTicket(id: number): Promise<Ticket | undefined> {
+    const [ticket] = await db.select().from(tickets).where(eq(tickets.id, id));
+    return ticket || undefined;
+  }
+
+  async getTicketByNumber(ticketNumber: string): Promise<Ticket | undefined> {
+    const [ticket] = await db.select().from(tickets).where(eq(tickets.ticketNumber, ticketNumber));
+    return ticket || undefined;
+  }
+
+  async createTicket(insertTicket: InsertTicket): Promise<Ticket> {
+    // Get the highest ticket number to continue sequence
+    const [lastTicket] = await db.select().from(tickets).orderBy(desc(tickets.id)).limit(1);
+    let nextTicketNumber = 40000;
+    
+    if (lastTicket) {
+      const lastNumber = parseInt(lastTicket.ticketNumber);
+      nextTicketNumber = lastNumber + 1;
+    }
+
+    const [ticket] = await db
+      .insert(tickets)
+      .values({
+        ...insertTicket,
+        ticketNumber: nextTicketNumber.toString()
+      })
+      .returning();
+    return ticket;
+  }
+
+  async updateTicket(id: number, updates: Partial<UpdateTicket>): Promise<Ticket | undefined> {
+    const [ticket] = await db
+      .update(tickets)
+      .set(updates)
+      .where(eq(tickets.id, id))
+      .returning();
+    return ticket || undefined;
+  }
+
+  async deleteTicket(id: number): Promise<boolean> {
+    const result = await db.delete(tickets).where(eq(tickets.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+}
+
+export const storage = new DatabaseStorage();

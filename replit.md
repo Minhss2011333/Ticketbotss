@@ -21,10 +21,10 @@ This is a Discord bot for the Tradeblox platform, designed to facilitate secure 
 - **Development**: Hot module replacement with Vite integration
 
 ### Data Storage Solutions
-- **Current**: In-memory storage using Map collections for development
+- **Current**: PostgreSQL database with Drizzle ORM for persistent data storage
 - **Database Schema**: Drizzle ORM configured for PostgreSQL with defined schemas
 - **Migration Strategy**: Drizzle-kit for schema migrations
-- **Future**: Ready for PostgreSQL database integration via environment variables
+- **Persistence**: All ticket data and numbering persists across bot restarts
 
 ## Key Components
 
@@ -117,6 +117,7 @@ To use the Discord bot functionality:
 - `!deletec` - Instantly delete current channel (admin only)
 
 ## Changelog
+- June 27, 2025: Implemented PostgreSQL database integration to fix ticket persistence issues - tickets now maintain proper numbering sequence and data survives bot restarts, added MM limit field to `/activity` command
 - June 27, 2025: Fixed ticket timeout system (removed automatic deletion), added `/unclaim` command for middlemen to release claimed tickets, implemented channel permission restrictions so only the claimer can talk in claimed tickets, updated `/tagmm` responses to show publicly instead of privately, and added `/activity` command for middlemen to post activity reports with trade details and screenshots
 - June 27, 2025: Enhanced mobile experience with copy-friendly embed formats, added role ping notifications when tickets are created, and fixed role-based command restrictions using proper Discord.js role checking
 - June 27, 2025: Implemented role-based restrictions for administrative commands - only users with role ID `1365778314572333188` can use `/setup`, `/tagmm`, `/add`, `/finish`, and `!deletec` commands
