@@ -1,0 +1,19 @@
+{
+  "name": "tradeblox-discord-bot",
+  "version": "1.0.0",
+  "description": "Tradeblox Discord Bot for Middleman Services",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "dev": "node bot.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "@neondatabase/serverless": "^0.9.0",
+    "drizzle-orm": "^0.29.0",
+    "zod": "^3.22.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
