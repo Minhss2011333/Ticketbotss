@@ -119,6 +119,7 @@ To use the Discord bot functionality:
 - `!deletec` - Instantly delete current channel (admin only)
 
 ## Changelog
+- June 28, 2025: Created standalone bot version for Pella.app deployment - single file with all features, fixed claim button integration issues, simplified storage for hosting services
 - June 27, 2025: Added `/tcmds` command to display comprehensive list of all Tradeblox commands organized by category (ticket, admin, activity, special commands)
 - June 27, 2025: Changed `/apple` to `!apple` text command with public confirmation system - users get prompted to join development team with Yes/No buttons, Yes assigns role, No gives 2-hour timeout, all responses visible to everyone
 - June 27, 2025: Implemented PostgreSQL database integration to fix ticket persistence issues - tickets now maintain proper numbering sequence and data survives bot restarts, added MM limit field to `/activity` command
