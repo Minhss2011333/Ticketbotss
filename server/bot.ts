@@ -854,6 +854,7 @@ export class TradebloxBot {
   }
 
   private async handleAddCommand(interaction: any) {
+    console.log('[BOT] Handling /add command');
     // Check if user has the required middleman role
     const member = interaction.member;
     if (!member || !member.roles.cache.has('1365778314572333188')) {
@@ -866,17 +867,21 @@ export class TradebloxBot {
 
     const user = interaction.options.getUser('user');
     const channelName = interaction.channel?.name;
+    console.log('[BOT] Channel name:', channelName);
     
     // Try to extract ticket number from channel name (e.g., "ticket-40000")
     let ticketNumber = null;
     if (channelName && channelName.startsWith('ticket-')) {
       ticketNumber = channelName.replace('ticket-', '');
     }
+    console.log('[BOT] Extracted ticket number:', ticketNumber);
 
     // Find the ticket from channel name
     let ticket = null;
     if (ticketNumber) {
+      console.log('[BOT] Looking up ticket by number:', ticketNumber);
       ticket = await storage.getTicketByNumber(ticketNumber);
+      console.log('[BOT] Found ticket:', ticket ? ticket.id : 'null');
     }
 
     if (!ticket) {
@@ -1338,6 +1343,7 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
       const receiving = interaction.fields.getTextInputValue('receiving');
 
       try {
+        console.log('[BOT] Creating ticket for user:', interaction.user.id);
         const ticketData = {
           creatorId: interaction.user.id,
           creatorName: interaction.user.displayName || interaction.user.username,
@@ -1347,8 +1353,11 @@ Middleman gives buyer NFR Crow (After seller confirmed receiving robux)
           category: "middleman"
         };
 
+        console.log('[BOT] Ticket data:', ticketData);
         const validatedData = insertTicketSchema.parse(ticketData);
+        console.log('[BOT] Creating ticket in storage...');
         const ticket = await storage.createTicket(validatedData);
+        console.log('[BOT] Ticket created successfully:', ticket.ticketNumber);
 
         const guild = interaction.guild;
         if (!guild) {

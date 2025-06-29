@@ -7,10 +7,13 @@ import { z } from "zod";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get all tickets
   app.get("/api/tickets", async (req, res) => {
+    console.log("[API] Fetching all tickets...");
     try {
       const tickets = await storage.getAllTickets();
+      console.log(`[API] Found ${tickets.length} tickets`);
       res.json(tickets);
     } catch (error) {
+      console.error("[API] Error fetching tickets:", error);
       res.status(500).json({ error: "Failed to fetch tickets" });
     }
   });
