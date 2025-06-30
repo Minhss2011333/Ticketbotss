@@ -1,5 +1,5 @@
-import { users, tickets, type User, type InsertUser, type Ticket, type InsertTicket, type UpdateTicket } from "@shared/schema";
-import { db } from "./db";
+import { users, tickets, type User, type InsertUser, type Ticket, type InsertTicket, type UpdateTicket } from "../shared/schema.js";
+import { db } from "./db.js";
 import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
